@@ -65,7 +65,7 @@ th{color:var(--mut);font-weight:600;font-size:12px}
 .bar{height:8px;background:#E4ECEB;border-radius:9px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--pri)}
 .bar i.hi{background:var(--err)}
-.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);max-width:92%;background:#14262A;color:#fff;padding:12px 16px;border-radius:12px;z-index:9;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);max-width:92%;font-size:17px;font-weight:600;background:#14262A;color:#fff;padding:12px 16px;border-radius:12px;z-index:9;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .toast.err{background:var(--err)}
 .toast.ok{background:var(--ok)}
 .alert{background:#FFF4E0;border:1px solid #F2C77E;color:#6A4300;border-radius:12px;padding:10px 12px;margin:8px 0;font-size:14px}
@@ -75,6 +75,7 @@ th{color:var(--mut);font-weight:600;font-size:12px}
 .sel{background:#EAF4F3;border:2px solid var(--pri);border-radius:14px;padding:12px;margin:8px 0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 .hide{display:none!important}
+.passo{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--pri2);margin-bottom:10px}.passo span{width:28px;height:28px;border-radius:50%;background:var(--pri);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
 .splash{text-align:center;padding:28px 10px 6px}.splash img{width:96px;height:96px;border-radius:24px;box-shadow:0 10px 30px rgba(8,58,64,.35)}
 .splash h1{margin:14px 0 2px;font-size:28px;color:var(--pri2);letter-spacing:-.5px}.splash p{margin:0;color:var(--mut)}
 .hero{background:linear-gradient(160deg,#11606A,#083A40);color:#fff;border-radius:18px;padding:16px;margin-bottom:12px}
@@ -184,11 +185,12 @@ setInterval(() => sincronizar(), 90000);
 
 // ===================== Utilidades de tela =====================
 function toast(msg, tipo) {
+  try { if (tipo === 'ok' && navigator.vibrate) navigator.vibrate(80); if (tipo === 'err' && navigator.vibrate) navigator.vibrate([60, 60, 60]); } catch (e) {}
   document.querySelectorAll('.toast').forEach(x => x.remove());
   const t = document.createElement('div'); t.className = 'toast ' + (tipo || ''); t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), tipo === 'err' ? 6000 : 3000);
 }
-function ir(t, arg) { if (t === 'lancar') limparForm = true; tela = t; telaArg = arg; render(); window.scrollTo(0, 0); }
+function ir(t, arg) { if (t === 'lancar') { limparForm = true; L.data = hoje(); if (!arg) animalSel = null; } tela = t; telaArg = arg; render(); window.scrollTo(0, 0); }
 function viv(id) { const v = S.viveiros[id]; return v ? v.codigo : '—'; }
 function vivOpts(sel, filtro) {
   return '<option value="">Selecione…</option>' + Object.values(S.viveiros).filter(v => !filtro || VIVEIRO_BLOQ.indexOf(v.status) < 0)
@@ -322,7 +324,7 @@ const OUTROS = ['Sexagem / canulação', 'Vacinação', 'Tratamento sanitário',
 
 let limparForm = true;
 function telaLancar(idAnimal) {
-  // preserva o que já foi digitado quando a tela é redesenhada (ex.: ao marcar "Houve mudança de viveiro?")
+  // preserva o que já foi digitado quando a tela é redesenhada
   const keep = {};
   if (!limparForm && tela === 'lancar') document.querySelectorAll('#main input,#main select,#main textarea').forEach(e => { if (e.id && e.type !== 'checkbox' && e.id !== 'qL') keep[e.id] = e.value; });
   limparForm = false;
@@ -331,47 +333,74 @@ function telaLancar(idAnimal) {
   if (!L.data) L.data = hoje();
   const a = animalSel ? S.animais[animalSel] : null;
   const novo = L.sub === 'Novo animal (chipagem)';
+  const nAtivos = Object.values(S.animais).filter(ativo).length;
+  const nomeSalvar = novo ? 'Cadastrar animal' : L.sub === 'Outro manejo' ? 'Salvar manejo' : 'Salvar ' + L.sub.toLowerCase();
+  const mostraMuda = !novo && L.sub !== 'Mudança de viveiro' && !ehBaixa();
+  const mostraDest = (novo || L.sub === 'Mudança de viveiro' || L.mudou) && !ehBaixa();
   $('main').innerHTML = `
     <h2>Lançar manejo</h2>
     <div class="card">
-      <label style="margin-top:0">Tipo de manejo</label>
-      <div class="chips">${TIPOS.map(t => `<button class="chip ${L.sub === t ? 'on' : ''}" onclick="L.sub='${t}';telaLancar()">${t}</button>`).join('')}</div>
+      <div class="passo"><span>1</span> Qual manejo?</div>
+      <div class="chips">${TIPOS.map(t => `<button class="chip ${L.sub === t ? 'on' : ''}" onclick="L.sub='${t}';guardar();telaLancar()">${t}</button>`).join('')}</div>
     </div>
     <div class="card">
-      ${novo ? formNovo() : `
-        <label style="margin-top:0">Animal (últimos dígitos do chip ou leitor RFID)</label>
-        ${a ? `<div class="sel">${chipFmt(a.chip)}<div class="s mut">${tagSexo(a.sexo)} Safra ${esc(a.safra || '—')} · Viveiro <b>${esc(viv(a.viveiro))}</b></div>
+      ${novo ? `<div class="passo"><span>2</span> Dados do animal novo</div>${formNovo()}` : `
+      <div class="passo"><span>2</span> Qual animal?</div>
+      ${a ? `<div class="sel">${chipFmt(a.chip)}<div class="s mut">${tagSexo(a.sexo)} Safra ${esc(a.safra || '—')} · Viveiro <b>${esc(viv(a.viveiro))}</b></div>
           <div style="margin-top:8px"><a class="lk" onclick="animalSel=null;telaLancar()">Trocar animal</a></div></div>`
-        : `<input id="qL" class="busca" inputmode="numeric" autocomplete="off" placeholder="ex.: 48213" oninput="resBuscaL()" onkeydown="if(event.key==='Enter'){const r=buscar(this.value);if(r.length===1){animalSel=r[0].id;telaLancar()}}"><div id="resL"></div>`}
-        ${a ? camposTipo(a) : ''}`}
-      ${(a || novo) ? `
-        ${L.sub !== 'Mudança de viveiro' && !ehBaixa() ? `<label>Houve mudança de viveiro?</label>
-          <div class="chips"><button class="chip ${!L.mudou ? 'on' : ''}" onclick="L.mudou=false;guardar();telaLancar()">Não</button><button class="chip ${L.mudou ? 'on' : ''}" onclick="L.mudou=true;guardar();telaLancar()">Sim</button></div>` : ''}
-        ${(L.mudou || L.sub === 'Mudança de viveiro' || novo) && !ehBaixa() ? `<label>${novo ? 'Viveiro onde o animal vai ficar' : 'Viveiro de destino'}</label><select id="fDest" onchange="L.destino=this.value;guardar()">${vivOpts(L.destino, true)}</select>` : ''}
-        <div class="grid2"><div><label>Data</label><input id="fData" type="date" value="${L.data}" onchange="L.data=this.value;guardar()"></div><div><label>&nbsp;</label><label style="display:flex;gap:8px;align-items:center;color:var(--tx);margin:12px 0 0"><input type="checkbox" style="width:22px;min-height:22px" ${L.lote ? 'checked' : ''} onchange="L.lote=this.checked;guardar()"> Modo lote</label></div></div>
-        <label>Observações</label><textarea id="fObs" rows="2"></textarea>
-        <div style="height:14px"></div>
-        <button class="btn acc w" onclick="salvarLanc()">Salvar</button>
-        <p class="mut" style="margin:8px 0 0">No modo lote, depois de salvar o sistema já fica pronto para o próximo animal com o mesmo tipo e viveiro de destino.</p>` : ''}
+        : !nAtivos ? `<div class="alert">Ainda não há animais cadastrados. Importe a planilha do plantel ou cadastre o primeiro animal.</div>
+          <div class="row"><button class="btn sec" onclick="ir('importar')">Importar planilha</button><button class="btn sec" onclick="L.sub='Novo animal (chipagem)';guardar();telaLancar()">Novo animal</button></div>`
+        : `<input id="qL" class="busca" inputmode="numeric" autocomplete="off" placeholder="Final do chip (ou RFID)" oninput="resBuscaL()" onkeydown="if(event.key==='Enter'){escolherBusca(this.value)}"><div id="resL"><p class="mut" style="margin:8px 0 0">Digite 4 ou 5 dígitos finais. Com um único resultado, o animal é selecionado sozinho.</p></div>`}`}
+    </div>
+    ${novo || L.sub === 'Mudança de viveiro' ? '' : `<div class="card" id="dadosCard">
+      <div class="passo"><span>3</span> Dados — ${esc(L.sub.toLowerCase())}</div>
+      ${camposTipo(a)}
+    </div>`}
+    <div class="card">
+      <div class="passo"><span>${novo || L.sub === 'Mudança de viveiro' ? 3 : 4}</span> ${L.sub === 'Mudança de viveiro' ? 'Para onde vai, e quando' : 'Viveiro, data e observações'}</div>
+      ${mostraMuda ? `<label>Houve mudança de viveiro?</label>
+        <div class="chips"><button class="chip ${!L.mudou ? 'on' : ''}" onclick="L.mudou=false;guardar();telaLancar()">Não</button><button class="chip ${L.mudou ? 'on' : ''}" onclick="L.mudou=true;guardar();telaLancar()">Sim</button></div>` : ''}
+      ${mostraDest ? `<label>${novo ? 'Viveiro onde o animal vai ficar' : 'Viveiro de destino'}${a ? ' (hoje está no ' + esc(viv(a.viveiro)) + ')' : ''}</label><select id="fDest" onchange="L.destino=this.value;guardar()">${vivOpts(L.destino, true)}</select>` : ''}
+      <div class="grid2"><div><label>Data</label><input id="fData" type="date" value="${L.data}" onchange="L.data=this.value;guardar()"></div>
+      <div><label>&nbsp;</label><label style="display:flex;gap:8px;align-items:center;color:var(--tx);margin:12px 0 0"><input type="checkbox" style="width:22px;min-height:22px" ${L.lote ? 'checked' : ''} onchange="L.lote=this.checked;guardar()"> Vários animais seguidos</label></div></div>
+      <label>Observações</label><textarea id="fObs" rows="2"></textarea>
+      <div style="height:14px"></div>
+      <button class="btn acc w" onclick="salvarLanc()">${nomeSalvar}</button>
+      ${L.lote ? `<p class="mut" style="margin:8px 0 0"><b>${S.atividades.filter(x => x.tipo === (L.sub === 'Outro manejo' ? L.outro : L.sub) && String(x.data).slice(0, 10) === L.data).length}</b> lançamento(s) deste tipo nesta data.</p>` : ''}
+      ${L.lote ? '<p class="mut" style="margin:8px 0 0">Depois de salvar, a tela volta pronta para o próximo animal com o mesmo manejo e o mesmo viveiro de destino.</p>' : ''}
     </div>`;
-  setTimeout(() => { const q = $('qL') || $('nChip'); if (q) q.focus(); }, 50);
+  setTimeout(() => {
+    const q = $('qL') || $('nChip') || (a && (document.querySelector('#dadosCard input') || $('fDest')));
+    if (q) { q.focus(); if (a) q.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    // Enter passa para o próximo campo (útil com luva / teclado numérico)
+    const campos = [...document.querySelectorAll('#main input:not([type=checkbox]):not(#qL), #main select')];
+    campos.forEach((c, i) => c.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); const n = campos[i + 1]; if (n) n.focus(); else salvarLanc(); } }));
+  }, 60);
+}
+function escolherBusca(q) {
+  const r = buscar(q);
+  if (r.length === 1) { animalSel = r[0].id; telaLancar(); }
+  else if (!r.length) toast('Nenhum animal ativo com chip terminando em ' + q + '.', 'err');
+  else toast(r.length + ' animais terminam com ' + q + '. Toque no certo na lista.', 'err');
 }
 function ehBaixa() { return L.sub === 'Outro manejo' && OUTROS.slice(5).includes(L.outro); }
 function guardar() { LS.set('ultimoLanc', L); }
 function resBuscaL() {
-  const q = $('qL').value, r = buscar(q);
-  $('resL').innerHTML = !q ? '' : r.length ? '<div style="margin-top:8px">' + r.map(a => itemAnimal(a, `animalSel='${a.id}';telaLancar()`)).join('') + '</div>' : '<p class="mut">Nenhum animal ativo com esse final de chip.</p>';
+  const q = $('qL').value.trim(), r = buscar(q);
+  if (r.length === 1 && (q.length >= 15 || r[0].chip === normChip(q))) { animalSel = r[0].id; return telaLancar(); }
+  $('resL').innerHTML = !q ? '' : r.length ? '<div style="margin-top:8px">' + r.map(a => itemAnimal(a, `animalSel='${a.id}';telaLancar()`)).join('') + '</div>'
+    : (() => { const ina = buscar(q, true).filter(x => !ativo(x)); return ina.length ? `<div class="alert err" style="margin-top:8px">O chip terminando em <b>${esc(q)}</b> é de um animal com status <b>${esc(ina[0].status)}</b>, que não recebe manejos.</div>` : ''; })() + `<div class="alert" style="margin-top:8px">Nenhum animal ativo com chip terminando em <b>${esc(q)}</b>.</div>${q.length >= 6 ? `<button class="btn sec w" onclick="L.sub='Novo animal (chipagem)';guardar();telaLancar();setTimeout(()=>{$('nChip').value='${esc(q)}'},60)">Cadastrar o chip ${esc(q)} como animal novo</button>` : ''}`;
 }
 function campo(id, rot, tipo, extra) { return `<div><label>${rot}</label><input id="${id}" ${tipo === 'n' ? 'inputmode="decimal"' : ''} ${extra || ''}></div>`; }
 function camposTipo(a) {
   const sub = L.sub;
   if (sub === 'Biometria') {
-    const u = ultimaBiometria(S, a.id);
+    const u = a ? ultimaBiometria(S, a.id) : null;
     return `${u ? `<div class="alert">Última biometria: <b>${u.dados.peso} g</b> em ${fData(u.data)}${u.dados.ct ? ' · CT ' + u.dados.ct + ' cm' : ''}</div>` : ''}
       <div class="grid2">${campo('bPeso', 'Peso (g)', 'n')}${campo('bCT', 'Comp. total (cm)', 'n')}${campo('bCP', 'Comp. padrão (cm)', 'n')}${campo('bAlt', 'Altura (cm, opcional)', 'n')}</div>`;
   }
   if (sub === 'Coleta de sêmen') {
-    return `${a.sexo !== 'M' ? `<div class="alert ${a.sexo === 'F' ? 'err' : ''}">${a.sexo === 'F' ? 'Este animal está cadastrado como Fêmea.' : 'Sexo indefinido: ao salvar, o animal será atualizado para Macho.'}</div>` : ''}
+    return `${a && a.sexo !== 'M' ? `<div class="alert ${a.sexo === 'F' ? 'err' : ''}">${a.sexo === 'F' ? 'Este animal está cadastrado como Fêmea.' : 'Sexo indefinido: ao salvar, o animal será atualizado para Macho.'}</div>` : ''}
       <div class="grid2">${campo('sVol', 'Volume (mL)', 'n')}${campo('sMot', 'Motilidade (%)', 'n')}${campo('sVig', 'Vigor (0 a 5)', 'n')}${campo('sConc', 'Concentração (sptz/mL)', 'n')}${campo('sDil', 'Diluidor / crioprotetor')}${campo('sDoses', 'Doses envasadas', 'n')}${campo('sVolD', 'Volume por dose (mL)', 'n')}${campo('sCor', 'Cor da palheta')}</div>
       <label>Botijão e caneca</label><select id="sCan">${canOpts(L.caneca)}</select>
       ${!Object.keys(S.canecas).length ? '<div class="alert">Cadastre os botijões e canecas em Mais → Botijões e canecas.</div>' : ''}`;
@@ -379,7 +408,7 @@ function camposTipo(a) {
   if (sub === 'Coleta de ovócitos') {
     const lotes = Object.values(S.lotes).filter(l => l.disp > 0);
     const machos = Object.values(S.animais).filter(x => x.sexo === 'M' && ativo(x));
-    return `${a.sexo !== 'F' ? `<div class="alert ${a.sexo === 'M' ? 'err' : ''}">${a.sexo === 'M' ? 'Este animal está cadastrado como Macho.' : 'Sexo indefinido: ao salvar, o animal será atualizado para Fêmea.'}</div>` : ''}
+    return `${a && a.sexo !== 'F' ? `<div class="alert ${a.sexo === 'M' ? 'err' : ''}">${a.sexo === 'M' ? 'Este animal está cadastrado como Macho.' : 'Sexo indefinido: ao salvar, o animal será atualizado para Fêmea.'}</div>` : ''}
       <label>Protocolo hormonal</label><input id="oProt">
       <div class="grid2">${campo('oPeso', 'Peso da desova (g)', 'n')}${campo('oFec', 'Fecundidade (ovócitos/g)', 'n')}</div>
       <label>Qualidade visual</label><select id="oQual"><option></option><option>Boa</option><option>Regular</option><option>Ruim</option></select>
@@ -394,6 +423,7 @@ function camposTipo(a) {
       <label>Detalhe</label><input id="xDet" placeholder="ex.: produto, dose, resultado">
       ${OUTROS.slice(5).includes(L.outro) ? '<div class="alert err">Este lançamento dá baixa no animal. Ele não poderá receber novos manejos.</div>' : ''}`;
   }
+  if (sub === 'Mudança de viveiro') return '<p class="mut" style="margin:0">Escolha o viveiro de destino no passo 4.</p>';
   return '';
 }
 function formNovo() {
@@ -413,6 +443,8 @@ function acharUm(q, sexo, rot) {
 function v(id) { const e = $(id); return e ? e.value.trim() : ''; }
 function salvarLanc() {
   try {
+    if (L.sub !== 'Novo animal (chipagem)' && !animalSel) { const q = $('qL'); if (q && q.value.trim()) { const r = buscar(q.value); if (r.length === 1) animalSel = r[0].id; } }
+    if (L.sub !== 'Novo animal (chipagem)' && !animalSel) { const q = $('qL'); if (q) q.focus(); throw new Error('Escolha o animal no passo 2 (digite o final do chip e toque nele na lista).'); }
     const obs = v('fObs'), data = v('fData') || hoje();
     const dest = $('fDest') ? $('fDest').value : '';
     if (L.sub === 'Novo animal (chipagem)') {
