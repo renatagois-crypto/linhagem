@@ -814,6 +814,13 @@ function enviarSugestao() {
 function mudarSug(id, st) { try { lancar([ev('sugestao_status', { id, status: st })]); telaSugestoes(); } catch (e) { toast(e.message, 'err'); } }
 
 // ===================== Início do app =====================
+// Link de configuração: ...index.html?s=<URL do servidor>&k=<chave> já deixa o celular pronto
+(function () {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get('s')) { cfg.url = q.get('s'); cfg.chave = q.get('k') || cfg.chave; LS.set('cfg', cfg); history.replaceState(null, '', location.pathname); }
+  } catch (e) {}
+})();
 recalcular();
 render();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
