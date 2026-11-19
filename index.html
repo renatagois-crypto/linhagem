@@ -112,7 +112,7 @@ let fila = LS.get('fila', []);         // lançamentos ainda não enviados
 let recusados = LS.get('recusados', []);
 let S = novoEstado();
 let tela = 'inicio', telaArg = null;
-let sincronizando = false, ultimaSync = LS.get('ultimaSync', '');
+let syncDeNovo = false, sincronizando = false, ultimaSync = LS.get('ultimaSync', '');
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -149,8 +149,8 @@ async function chamar(body) {
 async function sincronizar(manual) {
   if (!cfg.url) { if (manual) toast('Modo demonstração: os dados ficam só neste aparelho. Configure o servidor em Mais → Configurações.'); return; }
   if (!navigator.onLine) { if (manual) toast('Sem internet. Os lançamentos ficam guardados e serão enviados depois.'); return; }
-  if (sincronizando) return;
-  sincronizando = true; atualizarSync();
+  if (sincronizando) { syncDeNovo = true; return; } // termina o envio atual e envia de novo
+  sincronizando = true; syncDeNovo = false; atualizarSync();
   try {
     const enviar = fila.map(e => { const c = { ...e }; delete c._erro; return c; });
     const r = await chamar({ chave: cfg.chave, user: user && user.nome, pin: user && user.pin, eventos: enviar });
@@ -171,7 +171,7 @@ async function sincronizar(manual) {
     else if (manual) toast('Sincronizado.', 'ok');
   } catch (e) {
     if (manual) toast('Não foi possível sincronizar: ' + e.message, 'err');
-  } finally { sincronizando = false; atualizarSync(); }
+  } finally { sincronizando = false; atualizarSync(); if (syncDeNovo && fila.length) setTimeout(() => sincronizar(), 200); }
 }
 function atualizarSync() {
   const b = $('syncBtn');
@@ -190,7 +190,7 @@ function toast(msg, tipo) {
   const t = document.createElement('div'); t.className = 'toast ' + (tipo || ''); t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), tipo === 'err' ? 6000 : 3000);
 }
-function ir(t, arg) { if (t === 'lancar') { limparForm = true; L.data = hoje(); if (!arg) animalSel = null; } tela = t; telaArg = arg; render(); window.scrollTo(0, 0); }
+function ir(t, arg) { if (t === 'lancar') { limparForm = true; L.data = hoje(); L.mudou = false; if (!arg) animalSel = null; } tela = t; telaArg = arg; render(); window.scrollTo(0, 0); }
 function viv(id) { const v = S.viveiros[id]; return v ? v.codigo : '—'; }
 function vivOpts(sel, filtro) {
   return '<option value="">Selecione…</option>' + Object.values(S.viveiros).filter(v => !filtro || VIVEIRO_BLOQ.indexOf(v.status) < 0)
@@ -674,10 +674,22 @@ async function lerPlanilha(f) {
   if (!f) return;
   try {
     await carregarXLSX();
-    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true });
+    let wb;
+    if (/\.csv$/i.test(f.name)) {
+      // CSV: lê como UTF-8; se não for (Excel no Brasil salva em ANSI), usa Windows-1252. Aceita ; ou , como separador.
+      const buf = await f.arrayBuffer();
+      let texto; try { texto = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { texto = new TextDecoder('windows-1252').decode(buf); }
+      texto = texto.replace(/^\uFEFF/, '');
+      const l1 = texto.split(/\r?\n/)[0] || '';
+      const sep = (l1.match(/;/g) || []).length > (l1.match(/,/g) || []).length ? ';' : ',';
+      wb = XLSX.read(texto, { type: 'string', FS: sep, raw: true });
+    } else wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '', dateNF: 'yyyy-mm-dd' });
-    const R = rows.map(r => { const o = {}; Object.keys(r).forEach(k => o[normCol(k)] = String(r[k]).trim()); return o; });
+    // raw: true evita que o Excel transforme chips de 15 dígitos em "9.82E+14"
+    const rows = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' });
+    const txt = v => v instanceof Date ? v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0') + '-' + String(v.getDate()).padStart(2, '0')
+      : typeof v === 'number' ? (Number.isInteger(v) ? v.toFixed(0) : String(v)) : String(v == null ? '' : v).trim();
+    const R = rows.map(r => { const o = {}; Object.keys(r).forEach(k => o[normCol(k)] = txt(r[k])); return o; });
     if (!R.length) throw new Error('A planilha está vazia.');
     imp = (impTipo === 'animais' ? prepAnimais : prepOutros)(R);
     const p = imp;
@@ -699,7 +711,7 @@ function prepOutros(R) {
   if (impTipo === 'viveiros') {
     R.forEach((r, i) => { const c = pega(r, 'CODIGO', 'VIVEIRO', 'TANQUE'); if (!c) return problemas.push('Linha ' + (i + 2) + ': sem código');
       const ex = Object.values(S.viveiros).find(v => v.codigo.toLowerCase() === c.toLowerCase());
-      evs.push(ev('viveiro', { id: ex ? ex.id : uid(), codigo: c, nome: pega(r, 'NOME'), tipoUnidade: pega(r, 'TIPO') || 'Tanque', cap: pega(r, 'CAPACIDADE', 'CAPACIDADEANIMAIS'), capKg: pega(r, 'CAPACIDADEKG'), status: pega(r, 'STATUS', 'SITUACAO') || 'Ativo' })); rot.push(c); });
+      evs.push(ev('viveiro', { id: ex ? ex.id : uid(), codigo: c, nome: pega(r, 'NOME'), tipoUnidade: pega(r, 'TIPO') || 'Tanque', cap: pega(r, 'CAPACIDADE', 'CAPACIDADEANIMAIS'), capKg: pega(r, 'CAPACIDADEKG'), status: (['Ativo', 'Manutenção', 'Vazio sanitário', 'Inativo'].find(o => normCol(o) === normCol(pega(r, 'STATUS', 'SITUACAO'))) || 'Ativo') })); rot.push(c); });
   }
   if (impTipo === 'canecas') {
     R.forEach((r, i) => { const b = pega(r, 'BOTIJAO'), c = pega(r, 'CANECA'); if (!b || !c) return problemas.push('Linha ' + (i + 2) + ': falta botijão ou caneca');
@@ -746,7 +758,7 @@ function prepAnimais(R) {
     ok.push(r);
   });
   const vivExist = {}; Object.values(S.viveiros).forEach(x => vivExist[x.codigo.toLowerCase()] = x.id);
-  const novosViv = [...new Set(ok.map(r => r.viv).filter(x => x && !vivExist[x.toLowerCase()]))];
+  const novosViv = []; ok.forEach(r => { if (r.viv && !vivExist[r.viv.toLowerCase()] && !novosViv.some(x => x.toLowerCase() === r.viv.toLowerCase())) novosViv.push(r.viv); });
   const naPlan = {}; ok.forEach(r => naPlan[r.chip] = r);
   const refs = {};
   ok.forEach(r => [['pai', 'M'], ['mae', 'F']].forEach(([k, sx]) => { if (r[k]) { const c = normChip(r[k]); r[k] = c; if (!naPlan[c] && !Object.values(S.animais).some(a => a.chip === c)) refs[c] = sx; } }));
