@@ -269,6 +269,7 @@ function linhas(nome) {
 function n(x) { return x === '' || x == null ? null : Number(x); }
 
 function carregar() {
+  if (!planilha().getSheetByName('Animais')) setup(); // primeira execução cria as abas
   var s = novoEstado();
   linhas('Viveiros').forEach(function (r) { s.viveiros[r.id] = { id: r.id, codigo: r.codigo, nome: r.nome, tipo: r.tipo, cap: n(r.capacidade_animais), capKg: n(r.capacidade_kg), status: r.status }; });
   linhas('Canecas').forEach(function (r) { s.canecas[r.id] = { id: r.id, botijao: r.botijao, caneca: r.caneca, cor: r.cor, cap: n(r.capacidade_doses), status: r.status }; });
