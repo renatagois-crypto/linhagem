@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#11606A"/><stop offset="1" stop-color="#083A40"/></linearGradient>
+    <linearGradient id="corpo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F4AE62"/><stop offset=".5" stop-color="#E07B2E"/><stop offset=".51" stop-color="#2E3F42"/><stop offset="1" stop-color="#182325"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <path d="M70 410c40-18 80-18 120 0s80 18 120 0 80-18 120 0" fill="none" stroke="#7FC8C2" stroke-width="12" stroke-linecap="round" opacity=".55"/>
+  <!-- nadadeiras -->
+  <path d="M226 132c20-40 64-62 108-56-14 22-20 46-18 72z" fill="#C9661F"/>
+  <path d="M232 380c18 28 52 42 86 38-12-18-16-38-14-58z" fill="#182325"/>
+  <path d="M136 256 66 186c-14 46-14 94 0 140z" fill="#E07B2E"/>
+  <path d="M136 256 66 256 66 326z" fill="#C9661F"/>
+  <!-- corpo alto, tipo tambaqui -->
+  <path d="M130 256c8-78 84-134 172-134 66 0 112 52 124 112l10 22-10 22c-12 60-58 112-124 112-88 0-164-56-172-134z" fill="url(#corpo)"/>
+  <path d="M318 140c-22 70-22 162 0 232" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="378" cy="222" r="17" fill="#fff"/>
+  <circle cx="382" cy="222" r="8" fill="#0B2E33"/>
+  <path d="M436 256h-28" stroke="#0B2E33" stroke-width="7" stroke-linecap="round"/>
+</svg>

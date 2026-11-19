@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F5C63">
+<title>Linhagem — Gestão de Plantel e Germoplasma</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--pri:#0F5C63;--pri2:#0B4449;--acc:#E8833A;--bg:#F3F6F5;--card:#fff;--tx:#14262A;--mut:#5E7276;--ln:#DCE4E3;--ok:#2E7D4F;--err:#B3261E;--warn:#B26A00}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:linear-gradient(90deg,#0F5C63,#0B4449);color:#fff;display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top))}
+header img{width:34px;height:34px;border-radius:9px}
+header .t{flex:1;min-width:0}
+header .t b{display:block;font-size:17px}
+header .t small{opacity:.8;font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sync{font-size:12px;padding:6px 10px;border-radius:99px;background:rgba(255,255,255,.15);white-space:nowrap;border:0;color:#fff}
+.sync.pend{background:var(--acc)}
+.sync.off{background:#6b4a2a}
+main{padding:14px;padding-bottom:96px;max-width:860px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--ln);display:flex;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:9px 2px 10px;font-size:12px;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px}
+nav button svg{width:24px;height:24px}
+nav button.on{color:var(--pri);font-weight:600}
+h2{font-size:20px;margin:6px 0 12px}
+h3{font-size:16px;margin:18px 0 8px;color:var(--pri2)}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input,select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #C7D3D2;border-radius:10px;background:#fff;color:var(--tx);min-height:48px}
+input:focus,select:focus,textarea:focus{outline:3px solid rgba(15,92,99,.25);border-color:var(--pri)}
+.busca{font-size:22px;letter-spacing:1px;text-align:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:12px;background:var(--pri);color:#fff;font:600 16px system-ui,sans-serif;padding:12px 16px;min-height:48px;cursor:pointer}
+.btn.sec{background:#E4ECEB;color:var(--pri2)}
+.btn.acc{background:var(--acc)}
+.btn.w{width:100%}
+.btn.sm{min-height:38px;padding:8px 12px;font-size:14px}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid #C7D3D2;background:#fff;border-radius:99px;padding:10px 14px;font:500 15px system-ui,sans-serif;min-height:44px;color:var(--tx)}
+.chip.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.item{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--ln);cursor:pointer}
+.item:last-child{border-bottom:0}
+.item .m{flex:1;min-width:0}
+.item .s{font-size:13px;color:var(--mut)}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+.chipnum{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;color:var(--mut)}
+.chipnum b{color:var(--tx);font-size:18px}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:#E4ECEB;color:var(--pri2);margin-right:4px}
+.tag.M{background:#DCEAF7;color:#1C4E80}.tag.F{background:#F9E1D2;color:#8A3E12}.tag.I{background:#EEE;color:#555}
+.tag.bad{background:#F6D9D6;color:var(--err)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:#fff;border:1px solid var(--ln);border-radius:14px;padding:12px}
+.kpi b{display:block;font-size:26px;color:var(--pri)}
+.kpi span{font-size:13px;color:var(--mut)}
+.tl{border-left:3px solid var(--ln);margin-left:6px;padding-left:14px}
+.tl .ev{position:relative;padding:6px 0 12px}
+.tl .ev:before{content:"";position:absolute;left:-21px;top:11px;width:11px;height:11px;border-radius:50%;background:var(--acc)}
+.tl .ev small{color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--ln)}
+th{color:var(--mut);font-weight:600;font-size:12px}
+.bar{height:8px;background:#E4ECEB;border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--pri)}
+.bar i.hi{background:var(--err)}
+.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);max-width:92%;background:#14262A;color:#fff;padding:12px 16px;border-radius:12px;z-index:9;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.toast.err{background:var(--err)}
+.toast.ok{background:var(--ok)}
+.alert{background:#FFF4E0;border:1px solid #F2C77E;color:#6A4300;border-radius:12px;padding:10px 12px;margin:8px 0;font-size:14px}
+.alert.err{background:#FBE9E7;border-color:#EBA59E;color:var(--err)}
+.mut{color:var(--mut);font-size:14px}
+.big{font-size:24px;font-weight:700}
+.sel{background:#EAF4F3;border:2px solid var(--pri);border-radius:14px;padding:12px;margin:8px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.hide{display:none!important}
+.splash{text-align:center;padding:28px 10px 6px}.splash img{width:96px;height:96px;border-radius:24px;box-shadow:0 10px 30px rgba(8,58,64,.35)}
+.splash h1{margin:14px 0 2px;font-size:28px;color:var(--pri2);letter-spacing:-.5px}.splash p{margin:0;color:var(--mut)}
+.hero{background:linear-gradient(160deg,#11606A,#083A40);color:#fff;border-radius:18px;padding:16px;margin-bottom:12px}
+.hero label{color:#CFE7E4}.hero input{border:0}
+.acoes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.acao{background:#fff;border:1px solid var(--ln);border-radius:14px;padding:12px 6px;text-align:center;font:600 13px system-ui,sans-serif;color:var(--pri2);min-height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.acao span{font-size:24px;line-height:1}
+.st{font-size:12px;padding:2px 8px;border-radius:99px}.st.Nova{background:#FFF0D6;color:#8A5A00}.st.Em{background:#DCEAF7;color:#1C4E80}.st.Feita{background:#DDF1E4;color:#1E6B3C}.st.Descartada{background:#EEE;color:#666}
+a.lk{color:var(--pri);font-weight:600;cursor:pointer;text-decoration:none}
+details summary{cursor:pointer;color:var(--pri);font-weight:600;padding:6px 0}
+@media print{header,nav,.noprint{display:none!important}main{padding:0;max-width:none}.card{break-inside:avoid;border-color:#bbb}}
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.svg" alt="">
+  <div class="t"><b id="hNome">Linhagem</b><small>Gestão de Plantel e Germoplasma</small></div>
+  <button class="sync" id="syncBtn" onclick="sincronizar(true)">…</button>
+</header>
+<main id="main"></main>
+<nav id="nav"></nav>
+
+<script src="regras.js"></script>
+<script>
+// ===================== Armazenamento local =====================
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem('plantel_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('plantel_' + k, JSON.stringify(v)); } catch (e) { toast('A memória do aparelho está cheia. Sincronize assim que possível.', 'err'); } }
+};
+let cfg = LS.get('cfg', { url: '', chave: '', nome: 'Linhagem' });
+let user = LS.get('user', null);
+let base = LS.get('base', null);       // última cópia recebida do servidor
+let fila = LS.get('fila', []);         // lançamentos ainda não enviados
+let recusados = LS.get('recusados', []);
+let S = novoEstado();
+let tela = 'inicio', telaArg = null;
+let sincronizando = false, ultimaSync = LS.get('ultimaSync', '');
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const clone = o => JSON.parse(JSON.stringify(o));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const hoje = () => new Date().toISOString().slice(0, 10);
+const fData = d => { if (!d) return ''; const x = String(d).slice(0, 10).split('-'); return x.length === 3 ? x[2] + '/' + x[1] + '/' + x[0] : d; };
+const $ = id => document.getElementById(id);
+const SEXO = { M: 'Macho', F: 'Fêmea', I: 'Indefinido' };
+
+function recalcular() {
+  S = base ? clone(base.estado) : novoEstado();
+  S.usados = S.usados || {};
+  fila.forEach(ev => { try { aplicar(S, ev); delete ev._erro; } catch (e) { ev._erro = e.message; } });
+}
+function salvarLocal() { LS.set('fila', fila); LS.set('recusados', recusados); LS.set('base', base); }
+
+// Registra um ou vários lançamentos: valida no aparelho, guarda na fila e tenta enviar
+function lancar(eventos) {
+  const teste = clone(S);
+  for (const ev of eventos) aplicar(teste, ev); // lança erro se alguma regra for violada
+  fila.push(...eventos);
+  S = teste;
+  salvarLocal();
+  atualizarSync();
+  setTimeout(() => sincronizar(), 300);
+}
+function ev(tipo, p) { return { uid: uid(), tipo, ts: new Date().toISOString(), user: user ? user.nome : '', p }; }
+
+// ===================== Sincronização =====================
+async function chamar(body) {
+  const r = await fetch(cfg.url, { method: 'POST', body: JSON.stringify(body) });
+  return r.json();
+}
+async function sincronizar(manual) {
+  if (!cfg.url) { if (manual) toast('Modo demonstração: os dados ficam só neste aparelho. Configure o servidor em Mais → Configurações.'); return; }
+  if (!navigator.onLine) { if (manual) toast('Sem internet. Os lançamentos ficam guardados e serão enviados depois.'); return; }
+  if (sincronizando) return;
+  sincronizando = true; atualizarSync();
+  try {
+    const enviar = fila.map(e => { const c = { ...e }; delete c._erro; return c; });
+    const r = await chamar({ chave: cfg.chave, user: user && user.nome, pin: user && user.pin, eventos: enviar });
+    if (!r.ok) throw new Error(r.erro);
+    const res = {}; (r.resultados || []).forEach(x => res[x.uid] = x);
+    const nova = [];
+    fila.forEach(e => {
+      const x = res[e.uid];
+      if (!x) nova.push(e);
+      else if (!x.ok) recusados.unshift({ ...e, erro: x.erro, em: new Date().toISOString() });
+    });
+    const nRec = fila.length - nova.length - Object.values(res).filter(x => x.ok).length;
+    fila = nova;
+    base = r.foto;
+    ultimaSync = new Date().toISOString(); LS.set('ultimaSync', ultimaSync);
+    salvarLocal(); recalcular(); render();
+    if (nRec > 0) toast(nRec + ' lançamento(s) recusado(s) pelo servidor. Veja em Mais → Pendências.', 'err');
+    else if (manual) toast('Sincronizado.', 'ok');
+  } catch (e) {
+    if (manual) toast('Não foi possível sincronizar: ' + e.message, 'err');
+  } finally { sincronizando = false; atualizarSync(); }
+}
+function atualizarSync() {
+  const b = $('syncBtn');
+  const n = fila.length;
+  b.className = 'sync' + (n ? ' pend' : '') + (!navigator.onLine ? ' off' : '');
+  b.textContent = sincronizando ? 'Enviando…' : !cfg.url ? 'Demonstração' + (n ? ' · ' + n : '') : n ? n + ' a enviar' + (!navigator.onLine ? ' (offline)' : '') : !navigator.onLine ? 'Offline' : 'Sincronizado';
+}
+window.addEventListener('online', () => { atualizarSync(); sincronizar(); });
+window.addEventListener('offline', atualizarSync);
+setInterval(() => sincronizar(), 90000);
+
+// ===================== Utilidades de tela =====================
+function toast(msg, tipo) {
+  document.querySelectorAll('.toast').forEach(x => x.remove());
+  const t = document.createElement('div'); t.className = 'toast ' + (tipo || ''); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), tipo === 'err' ? 6000 : 3000);
+}
+function ir(t, arg) { if (t === 'lancar') limparForm = true; tela = t; telaArg = arg; render(); window.scrollTo(0, 0); }
+function viv(id) { const v = S.viveiros[id]; return v ? v.codigo : '—'; }
+function vivOpts(sel, filtro) {
+  return '<option value="">Selecione…</option>' + Object.values(S.viveiros).filter(v => !filtro || VIVEIRO_BLOQ.indexOf(v.status) < 0)
+    .sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt', { numeric: true }))
+    .map(v => `<option value="${v.id}" ${v.id === sel ? 'selected' : ''}>${esc(v.codigo)}${v.nome ? ' — ' + esc(v.nome) : ''}</option>`).join('');
+}
+function canOpts(sel) {
+  return '<option value="">Selecione…</option>' + Object.values(S.canecas).sort((a, b) => (a.botijao + a.caneca).localeCompare(b.botijao + b.caneca, 'pt', { numeric: true }))
+    .map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>Botijão ${esc(c.botijao)} · Caneca ${esc(c.caneca)}${c.cor ? ' (' + esc(c.cor) + ')' : ''}</option>`).join('');
+}
+function chipFmt(chip, n) {
+  n = n || 5; chip = chip || '';
+  return `<span class="chipnum">${esc(chip.slice(0, -n))}<b>${esc(chip.slice(-n))}</b></span>`;
+}
+function tagSexo(s) { return `<span class="tag ${s}">${SEXO[s] || s}</span>`; }
+function ativo(a) { return INATIVOS.indexOf(a.status) < 0 && a.status !== 'Referência'; }
+
+// Busca pelos últimos dígitos (ou chip completo / leitor RFID)
+function buscar(q, todos) {
+  q = String(q || '').trim().replace(/\s+/g, '');
+  if (!q) return [];
+  const lista = Object.values(S.animais).filter(a => todos || ativo(a));
+  const exato = lista.filter(a => a.chip === normChip(q));
+  if (exato.length) return exato;
+  return lista.filter(a => a.chip.endsWith(q) || a.chipsAnt.some(c => c.endsWith(q))).sort((a, b) => (ativo(b) - ativo(a)) || a.chip.localeCompare(b.chip)).slice(0, 40);
+}
+function itemAnimal(a, onclick) {
+  return `<div class="item" onclick="${onclick}">
+    <div class="m">${chipFmt(a.chip)}<div class="s">${tagSexo(a.sexo)} Safra ${esc(a.safra || '—')} · Viveiro ${esc(viv(a.viveiro))}${a.status !== 'Ativo' ? ' · <span class="tag bad">' + esc(a.status) + '</span>' : ''}</div></div><span>›</span></div>`;
+}
+
+// ===================== Navegação =====================
+const ICON = {
+  inicio: '<path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  lancar: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+  animais: '<path d="M3 12c3-5 9-7 14-4l4-3v14l-4-3c-5 3-11 1-14-4z"/><circle cx="15" cy="11" r="1"/>',
+  semen: '<path d="M9 3h6M10 3v5l-4 9a3 3 0 0 0 3 4h6a3 3 0 0 0 3-4l-4-9V3"/>',
+  mais: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>'
+};
+function renderNav() {
+  const it = [['inicio', 'Início'], ['lancar', 'Lançar'], ['animais', 'Animais'], ['semen', 'Sêmen'], ['mais', 'Mais']];
+  const grupo = { ficha: 'animais', viveiros: 'mais', canecas: 'mais', importar: 'mais', pedigree: 'mais', config: 'mais', pendencias: 'mais', painel: 'mais', editar: 'animais', sugestoes: 'mais' };
+  const at = grupo[tela] || tela;
+  $('nav').innerHTML = it.map(([k, l]) => `<button class="${at === k ? 'on' : ''}" onclick="ir('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>${l}</button>`).join('');
+}
+function render() {
+  $('hNome').textContent = cfg.nome || 'Linhagem';
+  if (!user) { telaLogin(); $('nav').innerHTML = ''; atualizarSync(); return; }
+  renderNav(); atualizarSync();
+  const f = { inicio: telaInicio, lancar: telaLancar, animais: telaAnimais, ficha: telaFicha, semen: telaSemen, mais: telaMais, viveiros: telaViveiros, canecas: telaCanecas, importar: telaImportar, pedigree: telaPedigree, config: telaConfig, pendencias: telaPendencias, painel: telaPainel, editar: telaEditar, sugestoes: telaSugestoes }[tela];
+  f(telaArg);
+}
+
+// ===================== Login =====================
+function telaLogin() {
+  const nomes = base && base.usuarios ? base.usuarios : [];
+  $('main').innerHTML = `<div class="splash"><img src="logo.svg" alt=""><h1>${esc(cfg.nome || 'Linhagem')}</h1><p>Gestão de Plantel, Manejo e Germoplasma</p></div>
+    <div class="card" style="margin-top:20px">
+    <h2>Entrar</h2>
+    <p class="mut">Informe seu nome e PIN. Cada lançamento fica registrado com o nome de quem fez.</p>
+    <label>Nome</label>${nomes.length ? `<select id="lgNome">${nomes.map(u => `<option>${esc(u.nome)}</option>`).join('')}</select>` : `<input id="lgNome" placeholder="Seu nome">`}
+    <label>PIN</label><input id="lgPin" type="password" inputmode="numeric" placeholder="PIN">
+    <div style="height:14px"></div>
+    <button class="btn w" onclick="entrar()">Entrar</button>
+    <details style="margin-top:14px"><summary>Configurar servidor</summary>${formServidor()}</details>
+  </div>`;
+}
+async function entrar() {
+  const nome = $('lgNome').value.trim(), pin = $('lgPin').value.trim();
+  if (!nome) return toast('Informe seu nome.', 'err');
+  if (cfg.url && navigator.onLine) {
+    try { const r = await chamar({ chave: cfg.chave, user: nome, pin, login: true }); if (!r.ok) return toast(r.erro, 'err'); }
+    catch (e) { return toast('Não consegui falar com o servidor: ' + e.message, 'err'); }
+  }
+  user = { nome, pin }; LS.set('user', user); ir('inicio'); sincronizar();
+}
+function formServidor() {
+  return `<label>Endereço do servidor (URL do Apps Script)</label><input id="cfUrl" value="${esc(cfg.url)}" placeholder="https://script.google.com/macros/s/…/exec">
+  <label>Chave do sistema</label><input id="cfChave" value="${esc(cfg.chave)}" placeholder="Senha definida no servidor">
+  <div style="height:10px"></div><button class="btn sec w" onclick="salvarServidor()">Salvar servidor</button>`;
+}
+async function salvarServidor() {
+  cfg.url = $('cfUrl').value.trim(); cfg.chave = $('cfChave').value.trim(); LS.set('cfg', cfg);
+  if (!cfg.url) { toast('Modo demonstração ativado.'); return render(); }
+  try {
+    const r = await fetch(cfg.url + '?chave=' + encodeURIComponent(cfg.chave)).then(x => x.json());
+    if (!r.ok) throw new Error(r.erro);
+    base = r.foto; salvarLocal(); recalcular(); toast('Servidor conectado.', 'ok'); render();
+  } catch (e) { toast('Não consegui conectar: ' + e.message, 'err'); }
+}
+
+// ===================== Início =====================
+function telaInicio() {
+  const an = Object.values(S.animais).filter(ativo);
+  const m = an.filter(a => a.sexo === 'M').length, f = an.filter(a => a.sexo === 'F').length;
+  const doses = Object.values(S.lotes).reduce((t, l) => t + (l.disp || 0), 0);
+  const ult = S.atividades.slice(-6).reverse();
+  $('main').innerHTML = `
+    <div class="hero"><label style="margin-top:0">Buscar animal pelos últimos dígitos do chip ou pelo leitor RFID</label>
+      <input id="q" class="busca" inputmode="numeric" autocomplete="off" placeholder="ex.: 48213" oninput="resBusca()" onkeydown="if(event.key==='Enter'){const r=buscar(this.value);if(r.length===1)ir('ficha',r[0].id)}">
+      <div id="res" style="background:#fff;border-radius:12px;color:var(--tx)"></div></div>
+    <div class="acoes">
+      <div class="acao" onclick="L.sub='Biometria';guardar();ir('lancar')"><span>⚖️</span>Biometria</div>
+      <div class="acao" onclick="L.sub='Coleta de sêmen';guardar();ir('lancar')"><span>🧪</span>Coleta de sêmen</div>
+      <div class="acao" onclick="L.sub='Coleta de ovócitos';guardar();ir('lancar')"><span>🥚</span>Ovócitos</div>
+      <div class="acao" onclick="L.sub='Mudança de viveiro';guardar();ir('lancar')"><span>🔁</span>Mudar viveiro</div>
+      <div class="acao" onclick="L.sub='Novo animal (chipagem)';guardar();ir('lancar')"><span>🏷️</span>Novo animal</div>
+      <div class="acao" onclick="ir('importar')"><span>📥</span>Importar dados</div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><b>${an.length}</b><span>animais ativos</span></div>
+      <div class="kpi"><b>${m} / ${f}</b><span>machos / fêmeas</span></div>
+      <div class="kpi"><b>${Object.keys(S.viveiros).length}</b><span>viveiros</span></div>
+      <div class="kpi"><b>${doses}</b><span>doses de sêmen</span></div>
+    </div>
+    ${!Object.keys(S.viveiros).length ? `<div class="alert" style="margin-top:12px">Comece importando a planilha do plantel (botão Importar dados) ou cadastrando os viveiros em Mais → Viveiros.</div>` : ''}
+    <h3>Últimos lançamentos</h3>
+    <div class="card" style="padding:4px 12px">${ult.length ? ult.map(a => { const x = S.animais[a.animal]; return `<div class="item" onclick="ir('ficha','${a.animal}')"><div class="m"><b>${esc(a.tipo)}</b> · ${x ? chipFmt(x.chip, 5) : ''}<div class="s">${fData(a.data)} · ${esc(a.resumo)}${a.destino && a.destino !== a.origem ? ' · ' + esc(viv(a.origem)) + ' → ' + esc(viv(a.destino)) : ''}</div></div></div>`; }).join('') : '<p class="mut">Nenhum lançamento ainda.</p>'}</div>`;
+  setTimeout(() => $('q') && $('q').focus(), 50);
+}
+function resBusca() {
+  const q = $('q').value, r = buscar(q, true);
+  $('res').innerHTML = !q ? '' : r.length ? '<div style="margin-top:8px">' + r.map(a => itemAnimal(a, `ir('ficha','${a.id}')`)).join('') + '</div>' : '<p class="mut">Nenhum animal encontrado.</p>';
+}
+
+// ===================== Lançar manejo =====================
+let L = LS.get('ultimoLanc', { sub: 'Biometria', mudou: false, destino: '', lote: true, data: '' });
+let animalSel = null;
+const TIPOS = ['Biometria', 'Coleta de sêmen', 'Coleta de ovócitos', 'Mudança de viveiro', 'Outro manejo', 'Rechipagem', 'Novo animal (chipagem)'];
+const OUTROS = ['Sexagem / canulação', 'Vacinação', 'Tratamento sanitário', 'Seleção genética', 'Despesca de conferência', 'Óbito', 'Descarte', 'Transferência externa'];
+
+let limparForm = true;
+function telaLancar(idAnimal) {
+  // preserva o que já foi digitado quando a tela é redesenhada (ex.: ao marcar "Houve mudança de viveiro?")
+  const keep = {};
+  if (!limparForm && tela === 'lancar') document.querySelectorAll('#main input,#main select,#main textarea').forEach(e => { if (e.id && e.type !== 'checkbox' && e.id !== 'qL') keep[e.id] = e.value; });
+  limparForm = false;
+  setTimeout(() => Object.keys(keep).forEach(k => { const e = $(k); if (e && keep[k] !== '' && k !== 'fDest') e.value = keep[k]; }), 0);
+  if (idAnimal) animalSel = idAnimal;
+  if (!L.data) L.data = hoje();
+  const a = animalSel ? S.animais[animalSel] : null;
+  const novo = L.sub === 'Novo animal (chipagem)';
+  $('main').innerHTML = `
+    <h2>Lançar manejo</h2>
+    <div class="card">
+      <label style="margin-top:0">Tipo de manejo</label>
+      <div class="chips">${TIPOS.map(t => `<button class="chip ${L.sub === t ? 'on' : ''}" onclick="L.sub='${t}';telaLancar()">${t}</button>`).join('')}</div>
+    </div>
+    <div class="card">
+      ${novo ? formNovo() : `
+        <label style="margin-top:0">Animal (últimos dígitos do chip ou leitor RFID)</label>
+        ${a ? `<div class="sel">${chipFmt(a.chip)}<div class="s mut">${tagSexo(a.sexo)} Safra ${esc(a.safra || '—')} · Viveiro <b>${esc(viv(a.viveiro))}</b></div>
+          <div style="margin-top:8px"><a class="lk" onclick="animalSel=null;telaLancar()">Trocar animal</a></div></div>`
+        : `<input id="qL" class="busca" inputmode="numeric" autocomplete="off" placeholder="ex.: 48213" oninput="resBuscaL()" onkeydown="if(event.key==='Enter'){const r=buscar(this.value);if(r.length===1){animalSel=r[0].id;telaLancar()}}"><div id="resL"></div>`}
+        ${a ? camposTipo(a) : ''}`}
+      ${(a || novo) ? `
+        ${L.sub !== 'Mudança de viveiro' && !ehBaixa() ? `<label>Houve mudança de viveiro?</label>
+          <div class="chips"><button class="chip ${!L.mudou ? 'on' : ''}" onclick="L.mudou=false;guardar();telaLancar()">Não</button><button class="chip ${L.mudou ? 'on' : ''}" onclick="L.mudou=true;guardar();telaLancar()">Sim</button></div>` : ''}
+        ${(L.mudou || L.sub === 'Mudança de viveiro' || novo) && !ehBaixa() ? `<label>${novo ? 'Viveiro onde o animal vai ficar' : 'Viveiro de destino'}</label><select id="fDest" onchange="L.destino=this.value;guardar()">${vivOpts(L.destino, true)}</select>` : ''}
+        <div class="grid2"><div><label>Data</label><input id="fData" type="date" value="${L.data}" onchange="L.data=this.value;guardar()"></div><div><label>&nbsp;</label><label style="display:flex;gap:8px;align-items:center;color:var(--tx);margin:12px 0 0"><input type="checkbox" style="width:22px;min-height:22px" ${L.lote ? 'checked' : ''} onchange="L.lote=this.checked;guardar()"> Modo lote</label></div></div>
+        <label>Observações</label><textarea id="fObs" rows="2"></textarea>
+        <div style="height:14px"></div>
+        <button class="btn acc w" onclick="salvarLanc()">Salvar</button>
+        <p class="mut" style="margin:8px 0 0">No modo lote, depois de salvar o sistema já fica pronto para o próximo animal com o mesmo tipo e viveiro de destino.</p>` : ''}
+    </div>`;
+  setTimeout(() => { const q = $('qL') || $('nChip'); if (q) q.focus(); }, 50);
+}
+function ehBaixa() { return L.sub === 'Outro manejo' && OUTROS.slice(5).includes(L.outro); }
+function guardar() { LS.set('ultimoLanc', L); }
+function resBuscaL() {
+  const q = $('qL').value, r = buscar(q);
+  $('resL').innerHTML = !q ? '' : r.length ? '<div style="margin-top:8px">' + r.map(a => itemAnimal(a, `animalSel='${a.id}';telaLancar()`)).join('') + '</div>' : '<p class="mut">Nenhum animal ativo com esse final de chip.</p>';
+}
+function campo(id, rot, tipo, extra) { return `<div><label>${rot}</label><input id="${id}" ${tipo === 'n' ? 'inputmode="decimal"' : ''} ${extra || ''}></div>`; }
+function camposTipo(a) {
+  const sub = L.sub;
+  if (sub === 'Biometria') {
+    const u = ultimaBiometria(S, a.id);
+    return `${u ? `<div class="alert">Última biometria: <b>${u.dados.peso} g</b> em ${fData(u.data)}${u.dados.ct ? ' · CT ' + u.dados.ct + ' cm' : ''}</div>` : ''}
+      <div class="grid2">${campo('bPeso', 'Peso (g)', 'n')}${campo('bCT', 'Comp. total (cm)', 'n')}${campo('bCP', 'Comp. padrão (cm)', 'n')}${campo('bAlt', 'Altura (cm, opcional)', 'n')}</div>`;
+  }
+  if (sub === 'Coleta de sêmen') {
+    return `${a.sexo !== 'M' ? `<div class="alert ${a.sexo === 'F' ? 'err' : ''}">${a.sexo === 'F' ? 'Este animal está cadastrado como Fêmea.' : 'Sexo indefinido: ao salvar, o animal será atualizado para Macho.'}</div>` : ''}
+      <div class="grid2">${campo('sVol', 'Volume (mL)', 'n')}${campo('sMot', 'Motilidade (%)', 'n')}${campo('sVig', 'Vigor (0 a 5)', 'n')}${campo('sConc', 'Concentração (sptz/mL)', 'n')}${campo('sDil', 'Diluidor / crioprotetor')}${campo('sDoses', 'Doses envasadas', 'n')}${campo('sVolD', 'Volume por dose (mL)', 'n')}${campo('sCor', 'Cor da palheta')}</div>
+      <label>Botijão e caneca</label><select id="sCan">${canOpts(L.caneca)}</select>
+      ${!Object.keys(S.canecas).length ? '<div class="alert">Cadastre os botijões e canecas em Mais → Botijões e canecas.</div>' : ''}`;
+  }
+  if (sub === 'Coleta de ovócitos') {
+    const lotes = Object.values(S.lotes).filter(l => l.disp > 0);
+    const machos = Object.values(S.animais).filter(x => x.sexo === 'M' && ativo(x));
+    return `${a.sexo !== 'F' ? `<div class="alert ${a.sexo === 'M' ? 'err' : ''}">${a.sexo === 'M' ? 'Este animal está cadastrado como Macho.' : 'Sexo indefinido: ao salvar, o animal será atualizado para Fêmea.'}</div>` : ''}
+      <label>Protocolo hormonal</label><input id="oProt">
+      <div class="grid2">${campo('oPeso', 'Peso da desova (g)', 'n')}${campo('oFec', 'Fecundidade (ovócitos/g)', 'n')}</div>
+      <label>Qualidade visual</label><select id="oQual"><option></option><option>Boa</option><option>Regular</option><option>Ruim</option></select>
+      <label>Destino da desova</label><select id="oDest" onchange="$('oFert').classList.toggle('hide',this.value!=='Fertilização')"><option>Fertilização</option><option>Análise laboratorial</option><option>Descarte</option></select>
+      <div id="oFert"><label>Sêmen congelado usado (lote)</label><select id="oLote"><option value="">Nenhum (sêmen fresco)</option>${lotes.map(l => { const d = S.animais[l.doador], c = S.canecas[l.caneca] || {}; return `<option value="${l.id}">${d ? '…' + esc(d.chip.slice(-5)) : '?'} · ${fData(l.data)} · ${l.disp} doses · B${esc(c.botijao)}/C${esc(c.caneca)}</option>`; }).join('')}</select>
+      ${campo('oDoses', 'Doses usadas', 'n')}
+      <label>Macho do cruzamento (sêmen fresco)</label><select id="oMacho"><option value="">—</option>${machos.map(m => `<option value="${m.id}">…${esc(m.chip.slice(-6))} · safra ${esc(m.safra)}</option>`).join('')}</select></div>`;
+  }
+  if (sub === 'Rechipagem') return `<div class="grid2">${campo('rChip', 'Novo chip (15 dígitos)', 'n')}${campo('rMot', 'Motivo')}</div>`;
+  if (sub === 'Outro manejo') {
+    return `<label>Qual manejo?</label><div class="chips">${OUTROS.map(o => `<button class="chip ${L.outro === o ? 'on' : ''}" onclick="L.outro='${o}';guardar();telaLancar()">${o}</button>`).join('')}</div>
+      <label>Detalhe</label><input id="xDet" placeholder="ex.: produto, dose, resultado">
+      ${OUTROS.slice(5).includes(L.outro) ? '<div class="alert err">Este lançamento dá baixa no animal. Ele não poderá receber novos manejos.</div>' : ''}`;
+  }
+  return '';
+}
+function formNovo() {
+  return `<div class="grid2">
+    ${campo('nChip', 'Chip (15 dígitos)', 'n', 'class="mono"')}
+    <div><label>Sexo</label><select id="nSexo"><option value="I">Indefinido</option><option value="M">Macho</option><option value="F">Fêmea</option></select></div>
+    ${campo('nSafra', 'Safra')}${campo('nClasse', 'Classe de prioridade')}
+    ${campo('nPai', 'Pai (chip ou final)', 'n')}${campo('nMae', 'Mãe (chip ou final)', 'n')}
+  </div>`;
+}
+function acharUm(q, sexo, rot) {
+  if (!q) return '';
+  const r = buscar(q, true).filter(x => !sexo || x.sexo === sexo);
+  if (r.length === 1) return r[0].id;
+  throw new Error(r.length ? `Mais de um animal termina com "${q}" para ${rot}. Digite mais dígitos.` : `${rot}: nenhum ${sexo === 'M' ? 'macho' : sexo === 'F' ? 'fêmea' : 'animal'} com chip terminando em "${q}".`);
+}
+function v(id) { const e = $(id); return e ? e.value.trim() : ''; }
+function salvarLanc() {
+  try {
+    const obs = v('fObs'), data = v('fData') || hoje();
+    const dest = $('fDest') ? $('fDest').value : '';
+    if (L.sub === 'Novo animal (chipagem)') {
+      if (!dest) throw new Error('Escolha o viveiro onde o animal vai ficar.');
+      const e = ev('animal_novo', { id: uid(), chip: v('nChip'), sexo: v('nSexo'), safra: v('nSafra'), classe: v('nClasse'), pai: acharUm(v('nPai'), 'M', 'Pai'), mae: acharUm(v('nMae'), 'F', 'Mãe'), viveiro: dest, data, obs });
+      lancar([e]); toast('Animal ' + normChip(e.p.chip) + ' cadastrado.', 'ok');
+      L.destino = dest; guardar(); limparForm = true; return telaLancar();
+    }
+    const a = S.animais[animalSel];
+    const mudou = L.sub === 'Mudança de viveiro' ? true : (L.sub === 'Outro manejo' && OUTROS.slice(5).includes(L.outro) ? false : L.mudou);
+    if (mudou && !dest) throw new Error('Escolha o viveiro de destino.');
+    let dados = {};
+    if (L.sub === 'Biometria') dados = { peso: v('bPeso'), ct: v('bCT'), cp: v('bCP'), altura: v('bAlt') };
+    if (L.sub === 'Coleta de sêmen') { dados = { volume: v('sVol'), motilidade: v('sMot'), vigor: v('sVig'), conc: v('sConc'), diluidor: v('sDil'), doses: v('sDoses'), volDose: v('sVolD'), cor: v('sCor'), caneca: v('sCan') }; L.caneca = dados.caneca; }
+    if (L.sub === 'Coleta de ovócitos') dados = { protocolo: v('oProt'), pesoDesova: v('oPeso'), fecundidade: v('oFec'), qualidade: v('oQual'), destinoDesova: v('oDest'), lote: v('oDest') === 'Fertilização' ? v('oLote') : '', dosesUsadas: v('oDoses'), macho: v('oDest') === 'Fertilização' ? v('oMacho') : '' };
+    if (L.sub === 'Rechipagem') dados = { novoChip: v('rChip'), motivo: v('rMot') };
+    if (L.sub === 'Outro manejo') { if (!L.outro) throw new Error('Escolha qual manejo.'); dados = { qual: L.outro, detalhe: v('xDet') }; }
+    if (a.sexo === 'F' && L.sub === 'Coleta de sêmen') throw new Error('Coleta de sêmen só pode ser feita em Macho.');
+    if (a.sexo === 'M' && L.sub === 'Coleta de ovócitos') throw new Error('Coleta de ovócitos só pode ser feita em Fêmea.');
+    if (a.sexo === 'I' && (L.sub === 'Coleta de sêmen' || L.sub === 'Coleta de ovócitos') && !confirm('O sexo deste animal está Indefinido. Confirmar que é ' + (L.sub === 'Coleta de sêmen' ? 'Macho' : 'Fêmea') + '?')) return;
+    lancar([ev('atividade', { animal: a.id, sub: L.sub, dados, mudou, destino: mudou ? dest : '', data, obs, confirmaSexo: true })]);
+    if (mudou) L.destino = dest;
+    guardar();
+    toast(L.sub + ' salva para …' + a.chip.slice(-5) + (mudou ? ' · foi para ' + viv(dest) : ''), 'ok');
+    animalSel = null; limparForm = true;
+    if (L.lote) telaLancar(); else ir('ficha', a.id);
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ===================== Animais e Ficha =====================
+let filtroAn = { q: '', status: 'Ativos', sexo: '', safra: '' };
+function telaAnimais() {
+  const safras = [...new Set(Object.values(S.animais).map(a => a.safra).filter(Boolean))].sort();
+  let lista = Object.values(S.animais).filter(a => filtroAn.status === 'Todos' || (filtroAn.status === 'Ativos' ? ativo(a) : !ativo(a)));
+  if (filtroAn.sexo) lista = lista.filter(a => a.sexo === filtroAn.sexo);
+  if (filtroAn.safra) lista = lista.filter(a => a.safra === filtroAn.safra);
+  if (filtroAn.q) lista = lista.filter(a => a.chip.endsWith(filtroAn.q.trim()) || a.chipsAnt.some(c => c.endsWith(filtroAn.q.trim())));
+  const tot = lista.length; lista = lista.sort((a, b) => a.chip.localeCompare(b.chip)).slice(0, 200);
+  $('main').innerHTML = `<h2>Animais</h2>
+    <div class="card"><input id="qA" class="busca" inputmode="numeric" placeholder="final do chip" value="${esc(filtroAn.q)}" oninput="filtroAn.q=this.value;telaAnimaisLista()">
+    <div class="grid2"><div><label>Status</label><select onchange="filtroAn.status=this.value;telaAnimais()">${['Ativos', 'Baixados / referência', 'Todos'].map(o => `<option ${filtroAn.status === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
+    <div><label>Sexo</label><select onchange="filtroAn.sexo=this.value;telaAnimais()"><option value="">Todos</option>${['M', 'F', 'I'].map(o => `<option value="${o}" ${filtroAn.sexo === o ? 'selected' : ''}>${SEXO[o]}</option>`).join('')}</select></div>
+    <div><label>Safra</label><select onchange="filtroAn.safra=this.value;telaAnimais()"><option value="">Todas</option>${safras.map(o => `<option ${filtroAn.safra === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div></div></div>
+    <p class="mut">${tot} animal(is)${tot > 200 ? ' — mostrando 200, use a busca para refinar' : ''}</p>
+    <div class="card" style="padding:4px 12px" id="listaA">${lista.map(a => itemAnimal(a, `ir('ficha','${a.id}')`)).join('') || '<p class="mut">Nenhum animal.</p>'}</div>`;
+  const q = $('qA'); q.focus(); q.setSelectionRange(q.value.length, q.value.length);
+}
+function telaAnimaisLista() { clearTimeout(window._tA); window._tA = setTimeout(telaAnimais, 250); }
+function filhosDe(id) { return Object.values(S.animais).filter(a => a.pai === id || a.mae === id); }
+function linkAn(id, rot) { const a = S.animais[id]; return a ? `<a class="lk" onclick="ir('ficha','${id}')">${rot ? rot + ' ' : ''}…${esc(a.chip.slice(-6))}</a>` : '<span class="mut">desconhecido</span>'; }
+function telaFicha(id) {
+  const a = S.animais[id]; if (!a) return ir('animais');
+  const pai = S.animais[a.pai], mae = S.animais[a.mae];
+  const filhos = filhosDe(id), idsF = new Set(filhos.map(f => f.id));
+  const netos = Object.values(S.animais).filter(x => idsF.has(x.pai) || idsF.has(x.mae));
+  const lotes = Object.values(S.lotes).filter(l => l.doador === id);
+  const ini = lotes.reduce((t, l) => t + l.ini, 0), disp = lotes.reduce((t, l) => t + l.disp, 0);
+  const hist = S.atividades.filter(x => x.animal === id).slice().sort((x, y) => (y.data + y.ts).localeCompare(x.data + x.ts));
+  $('main').innerHTML = `
+    <div class="card"><div class="mut">Chip atual</div><div class="big mono">${esc(a.chip)}</div>
+      ${a.chipsAnt.length ? `<div class="mut">Chips anteriores: <span class="mono">${a.chipsAnt.map(esc).join(', ')}</span></div>` : ''}
+      <div style="margin:8px 0">${tagSexo(a.sexo)} <span class="tag ${ativo(a) ? '' : 'bad'}">${esc(a.status)}</span></div>
+      <table><tr><th>Safra</th><td>${esc(a.safra || '—')}</td><th>Viveiro atual</th><td><b>${esc(viv(a.viveiro))}</b></td></tr>
+      <tr><th>Classe prioridade</th><td>${esc(a.classe || '—')}</td><th>Razão pai / mãe</th><td>${esc(a.razaoPai || '—')} / ${esc(a.razaoMae || '—')}</td></tr></table>
+      <div class="row noprint" style="margin-top:12px">${ativo(a) ? `<button class="btn acc sm" onclick="ir('lancar','${id}')">Lançar manejo</button>` : ''}<button class="btn sec sm" onclick="ir('editar','${id}')">Editar</button><button class="btn sec sm" onclick="window.print()">PDF / imprimir</button></div></div>
+    <div class="card"><h3 style="margin-top:0">Genealogia</h3>
+      <table><tr><th></th><th>Pai</th><th>Mãe</th></tr>
+      <tr><th>Pais</th><td>${a.pai ? linkAn(a.pai) : '—'}</td><td>${a.mae ? linkAn(a.mae) : '—'}</td></tr>
+      <tr><th>Avós paternos</th><td>${pai && pai.pai ? linkAn(pai.pai) : '—'}</td><td>${pai && pai.mae ? linkAn(pai.mae) : '—'}</td></tr>
+      <tr><th>Avós maternos</th><td>${mae && mae.pai ? linkAn(mae.pai) : '—'}</td><td>${mae && mae.mae ? linkAn(mae.mae) : '—'}</td></tr></table>
+      <div class="kpis" style="margin:12px 0 0"><div class="kpi"><b>${filhos.length}</b><span>filhos</span></div><div class="kpi"><b>${netos.length}</b><span>netos</span></div></div>
+      ${filhos.length ? `<details><summary>Ver filhos</summary>${filhos.map(f => itemAnimal(f, `ir('ficha','${f.id}')`)).join('')}</details>` : ''}
+      ${netos.length ? `<details><summary>Ver netos</summary>${netos.map(f => itemAnimal(f, `ir('ficha','${f.id}')`)).join('')}</details>` : ''}</div>
+    ${a.sexo === 'M' || lotes.length ? `<div class="card"><h3 style="margin-top:0">Estoque de sêmen</h3>
+      <div class="kpis"><div class="kpi"><b>${ini}</b><span>doses coletadas</span></div><div class="kpi"><b>${ini - disp}</b><span>usadas / descartadas</span></div><div class="kpi"><b>${disp}</b><span>disponíveis</span></div></div>
+      ${lotes.length ? `<table><tr><th>Coleta</th><th>Local</th><th>Cor</th><th>Disp.</th></tr>${lotes.map(l => { const c = S.canecas[l.caneca] || {}; return `<tr><td>${fData(l.data)}</td><td>Botijão ${esc(c.botijao)} / Caneca ${esc(c.caneca)}</td><td>${esc(l.cor)}</td><td><b>${l.disp}</b> de ${l.ini}</td></tr>`; }).join('')}</table>` : ''}</div>` : ''}
+    <div class="card"><h3 style="margin-top:0">Histórico de atividades e viveiros</h3>
+      <div class="tl">${hist.map(h => `<div class="ev"><b>${esc(h.tipo)}</b> <small>${fData(h.data)}${h.user ? ' · ' + esc(h.user) : ''}</small><div>${esc(h.resumo)}</div>${h.destino && h.destino !== h.origem ? `<small>Viveiro ${esc(viv(h.origem))} → <b>${esc(viv(h.destino))}</b></small>` : ''}${h.obs ? `<div class="mut">${esc(h.obs)}</div>` : ''}</div>`).join('') || '<p class="mut">Sem atividades.</p>'}</div></div>`;
+}
+function telaEditar(id) {
+  const a = S.animais[id];
+  const pai = S.animais[a.pai], mae = S.animais[a.mae];
+  $('main').innerHTML = `<h2>Editar animal</h2><div class="card"><div class="big mono">${esc(a.chip)}</div>
+    <div class="grid2"><div><label>Sexo</label><select id="eSexo">${['I', 'M', 'F'].map(s => `<option value="${s}" ${a.sexo === s ? 'selected' : ''}>${SEXO[s]}</option>`).join('')}</select></div>
+    <div><label>Safra</label><input id="eSafra" value="${esc(a.safra)}"></div>
+    <div><label>Classe prioridade</label><input id="eClasse" value="${esc(a.classe)}"></div><div></div>
+    <div><label>Razão pai</label><input id="eRp" value="${esc(a.razaoPai)}"></div><div><label>Razão mãe</label><input id="eRm" value="${esc(a.razaoMae)}"></div>
+    <div><label>Pai (chip ou final)</label><input id="ePai" inputmode="numeric" value="${pai ? esc(pai.chip) : ''}"></div>
+    <div><label>Mãe (chip ou final)</label><input id="eMae" inputmode="numeric" value="${mae ? esc(mae.chip) : ''}"></div></div>
+    ${!ativo(a) && a.status !== 'Referência' ? `<label>Status</label><select id="eStatus"><option>${esc(a.status)}</option><option value="Ativo">Ativo (reverter baixa indevida)</option></select>` : ''}
+    <div style="height:14px"></div><div class="row"><button class="btn sec" onclick="ir('ficha','${id}')">Cancelar</button><button class="btn" onclick="salvarEdicao('${id}')">Salvar</button></div></div>`;
+}
+function salvarEdicao(id) {
+  try {
+    const p = { id, sexo: v('eSexo'), safra: v('eSafra'), classe: v('eClasse'), razaoPai: v('eRp'), razaoMae: v('eRm'), pai: acharUm(v('ePai'), 'M', 'Pai'), mae: acharUm(v('eMae'), 'F', 'Mãe') };
+    if ($('eStatus')) p.status = v('eStatus');
+    lancar([ev('editar_animal', p)]); toast('Alterações salvas.', 'ok'); ir('ficha', id);
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ===================== Sêmen =====================
+function telaSemen() {
+  const lotes = Object.values(S.lotes);
+  const ini = lotes.reduce((t, l) => t + l.ini, 0), disp = lotes.reduce((t, l) => t + l.disp, 0);
+  const porBot = {};
+  Object.values(S.canecas).forEach(c => { (porBot[c.botijao] = porBot[c.botijao] || []).push(c); });
+  const mes = {};
+  S.atividades.forEach(a => {
+    const m = String(a.data).slice(0, 7);
+    if (a.tipo === 'Coleta de sêmen') (mes[m] = mes[m] || [0, 0])[0] += a.dados.doses || 0;
+    if (a.tipo === 'Coleta de ovócitos' && a.dados.dosesUsadas) (mes[m] = mes[m] || [0, 0])[1] += a.dados.dosesUsadas;
+    if (a.tipo === 'Descarte de doses') (mes[m] = mes[m] || [0, 0])[1] += a.dados.qtd || 0;
+  });
+  $('main').innerHTML = `<h2>Banco de sêmen</h2>
+    <div class="kpis"><div class="kpi"><b>${ini}</b><span>doses coletadas</span></div><div class="kpi"><b>${ini - disp}</b><span>usadas / descartadas</span></div><div class="kpi"><b>${disp}</b><span>disponíveis</span></div></div>
+    ${Object.keys(porBot).sort((a, b) => a.localeCompare(b, 'pt', { numeric: true })).map(b => `<div class="card"><h3 style="margin-top:0">Botijão ${esc(b)}</h3>
+      ${porBot[b].sort((x, y) => x.caneca.localeCompare(y.caneca, 'pt', { numeric: true })).map(c => {
+        const ls = lotes.filter(l => l.caneca === c.id && l.disp > 0), tot = ls.reduce((t, l) => t + l.disp, 0);
+        return `<div style="margin:10px 0"><b>Caneca ${esc(c.caneca)}</b>${c.cor ? ' <span class="tag">' + esc(c.cor) + '</span>' : ''} <span class="mut">${tot} dose(s)${c.cap ? ' de ' + c.cap : ''}</span>
+          ${c.cap ? `<div class="bar"><i class="${tot > c.cap ? 'hi' : ''}" style="width:${Math.min(100, tot / c.cap * 100)}%"></i></div>` : ''}
+          ${ls.map(l => { const d = S.animais[l.doador]; return `<div class="item" style="padding:8px 0"><div class="m">${d ? linkAn(d.id, 'Doador') : '?'} <span class="mut">· safra ${esc(d ? d.safra : '')} · coleta ${fData(l.data)}${l.cor ? ' · ' + esc(l.cor) : ''}</span></div><b>${l.disp}</b>
+            <button class="btn sec sm noprint" onclick="acaoLote('${l.id}')">⋯</button></div>`; }).join('')}</div>`;
+      }).join('')}</div>`).join('') || '<div class="alert">Nenhum botijão cadastrado. Vá em Mais → Botijões e canecas.</div>'}
+    <h3>Histórico mensal</h3><div class="card"><table><tr><th>Mês</th><th>Doses coletadas</th><th>Baixas</th></tr>${Object.keys(mes).sort().reverse().map(m => `<tr><td>${m.split('-').reverse().join('/')}</td><td>${mes[m][0]}</td><td>${mes[m][1]}</td></tr>`).join('') || '<tr><td colspan="3" class="mut">Sem movimentação.</td></tr>'}</table></div>`;
+}
+function acaoLote(id) {
+  const l = S.lotes[id], d = S.animais[l.doador], c = S.canecas[l.caneca] || {};
+  $('main').innerHTML = `<h2>Lote de sêmen</h2><div class="card">
+    <div>Doador ${d ? linkAn(d.id) : '?'} · coleta ${fData(l.data)}</div><div class="mut">Botijão ${esc(c.botijao)} / Caneca ${esc(c.caneca)} · <b>${l.disp}</b> de ${l.ini} doses</div>
+    <h3>Descartar doses</h3><div class="grid2">${campo('dQtd', 'Quantidade', 'n')}${campo('dMot', 'Motivo')}</div>
+    <div style="height:10px"></div><button class="btn sec w" onclick="try{lancar([ev('descartar_doses',{lote:'${id}',qtd:v('dQtd'),motivo:v('dMot'),data:hoje()})]);toast('Baixa registrada.','ok');ir('semen')}catch(e){toast(e.message,'err')}">Registrar descarte</button>
+    <h3>Mover para outra caneca</h3><select id="mCan">${canOpts('')}</select>
+    <div style="height:10px"></div><button class="btn sec w" onclick="try{lancar([ev('mover_doses',{lote:'${id}',caneca:v('mCan'),data:hoje()})]);toast('Lote movido.','ok');ir('semen')}catch(e){toast(e.message,'err')}">Mover lote</button>
+    <div style="height:10px"></div><button class="btn sec w" onclick="ir('semen')">Voltar</button></div>`;
+}
+
+// ===================== Mais =====================
+function telaMais() {
+  const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)'], ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ['pendencias', 'Pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)'], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
+  $('main').innerHTML = `<h2>Mais</h2><div class="card" style="padding:4px 12px">${it.map(([k, t, s]) => `<div class="item" onclick="ir('${k}')"><div class="m"><b>${t}</b><div class="s">${s}</div></div><span>›</span></div>`).join('')}</div>
+    <p class="mut">Usuário: <b>${esc(user.nome)}</b> · <a class="lk" onclick="if(confirm('Sair?')){user=null;LS.set('user',null);render()}">Sair</a></p>`;
+}
+function ocupacao() {
+  const r = {};
+  Object.values(S.viveiros).forEach(v => r[v.id] = { n: 0, M: 0, F: 0, I: 0, kg: 0, semPeso: 0, safras: {} });
+  Object.values(S.animais).filter(ativo).forEach(a => {
+    const o = r[a.viveiro]; if (!o) return;
+    o.n++; o[a.sexo] = (o[a.sexo] || 0) + 1; o.safras[a.safra || '—'] = (o.safras[a.safra || '—'] || 0) + 1;
+    const b = ultimaBiometria(S, a.id); if (b) o.kg += b.dados.peso / 1000; else o.semPeso++;
+  });
+  return r;
+}
+function telaViveiros(editId) {
+  const oc = ocupacao(), e = editId ? S.viveiros[editId] : null;
+  $('main').innerHTML = `<h2>Viveiros</h2>
+    <div class="card"><h3 style="margin-top:0">${e ? 'Editar ' + esc(e.codigo) : 'Novo viveiro'}</h3>
+      <div class="grid2">${campo('vCod', 'Código', '', `value="${e ? esc(e.codigo) : ''}"`)}${campo('vNome', 'Nome', '', `value="${e ? esc(e.nome) : ''}"`)}
+      <div><label>Tipo</label><select id="vTipo">${['Tanque', 'Viveiro escavado', 'Tanque-rede', 'Laboratório'].map(t => `<option ${e && e.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div><label>Situação</label><select id="vSt">${['Ativo', 'Manutenção', 'Vazio sanitário', 'Inativo'].map(t => `<option ${e && e.status === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      ${campo('vCap', 'Capacidade (animais)', 'n', `value="${e && e.cap != null ? e.cap : ''}"`)}${campo('vKg', 'Capacidade (kg biomassa)', 'n', `value="${e && e.capKg != null ? e.capKg : ''}"`)}</div>
+      <div style="height:12px"></div><div class="row">${e ? `<button class="btn sec" onclick="telaViveiros()">Cancelar</button>` : ''}<button class="btn" onclick="salvarViveiro('${e ? e.id : ''}')">Salvar viveiro</button></div></div>
+    <div class="card" style="padding:4px 12px">${Object.values(S.viveiros).sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt', { numeric: true })).map(x => {
+      const o = oc[x.id], pct = x.cap ? o.n / x.cap * 100 : null;
+      return `<div class="item" onclick="telaViveiros('${x.id}')"><div class="m"><b>${esc(x.codigo)}</b> ${esc(x.nome)} ${x.status !== 'Ativo' ? '<span class="tag bad">' + esc(x.status) + '</span>' : ''}
+        <div class="s">${o.n} animais (${o.M}M · ${o.F}F · ${o.I}I)${x.cap ? ' · ' + Math.round(pct) + '% da capacidade' : ''} · ${o.kg.toFixed(1)} kg${o.semPeso ? ' (' + o.semPeso + ' sem biometria)' : ''}</div>
+        ${x.cap ? `<div class="bar"><i class="${pct > 100 ? 'hi' : ''}" style="width:${Math.min(100, pct)}%"></i></div>` : ''}</div><span>✎</span></div>`;
+    }).join('') || '<p class="mut">Nenhum viveiro cadastrado.</p>'}</div>`;
+}
+function salvarViveiro(id) {
+  try { lancar([ev('viveiro', { id: id || uid(), codigo: v('vCod'), nome: v('vNome'), tipoUnidade: v('vTipo'), status: v('vSt'), cap: v('vCap'), capKg: v('vKg') })]); toast('Viveiro salvo.', 'ok'); telaViveiros(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+function telaCanecas() {
+  $('main').innerHTML = `<h2>Botijões e canecas</h2>
+    <div class="card"><div class="grid2">${campo('cBot', 'Botijão (código)')}${campo('cCan', 'Caneca (número)', 'n')}${campo('cCor', 'Cor de identificação')}${campo('cCap', 'Capacidade (doses)', 'n')}</div>
+    <div style="height:12px"></div><button class="btn w" onclick="try{lancar([ev('caneca',{id:uid(),botijao:v('cBot'),caneca:v('cCan'),cor:v('cCor'),cap:v('cCap')})]);toast('Caneca cadastrada.','ok');telaCanecas()}catch(e){toast(e.message,'err')}">Adicionar caneca</button></div>
+    <div class="card"><table><tr><th>Botijão</th><th>Caneca</th><th>Cor</th><th>Capacidade</th></tr>${Object.values(S.canecas).sort((a, b) => (a.botijao + '|' + a.caneca).localeCompare(b.botijao + '|' + b.caneca, 'pt', { numeric: true })).map(c => `<tr><td>${esc(c.botijao)}</td><td>${esc(c.caneca)}</td><td>${esc(c.cor)}</td><td>${c.cap || '—'}</td></tr>`).join('') || '<tr><td colspan="4" class="mut">Nenhuma caneca.</td></tr>'}</table></div>`;
+}
+function contar(lista, f) { const r = {}; lista.forEach(a => { const k = f(a) || '—'; r[k] = (r[k] || 0) + 1; }); return r; }
+function tabelaCont(t, obj, total) {
+  return `<h3>${t}</h3><div class="card"><table>${Object.keys(obj).sort((a, b) => a.localeCompare(b, 'pt', { numeric: true })).map(k => `<tr><td>${esc(k)}</td><td style="width:40%"><div class="bar"><i style="width:${obj[k] / total * 100}%"></i></div></td><td><b>${obj[k]}</b></td><td class="mut">${Math.round(obj[k] / total * 100)}%</td></tr>`).join('')}</table></div>`;
+}
+function telaPainel() {
+  const an = Object.values(S.animais).filter(ativo), tot = an.length || 1;
+  const ent = {}, bx = {};
+  S.atividades.forEach(a => { const m = String(a.data).slice(0, 7); if (a.tipo === 'Chipagem' || a.tipo === 'Cadastro (importação)') ent[m] = (ent[m] || 0) + 1; if (BAIXAS[a.tipo]) bx[m] = (bx[m] || 0) + 1; });
+  const meses = [...new Set([...Object.keys(ent), ...Object.keys(bx)])].sort().reverse().slice(0, 12);
+  $('main').innerHTML = `<h2>Painéis</h2><div class="kpis"><div class="kpi"><b>${an.length}</b><span>animais ativos</span></div></div>
+    ${tabelaCont('Por sexo', contar(an, a => SEXO[a.sexo]), tot)}${tabelaCont('Por safra', contar(an, a => a.safra), tot)}${tabelaCont('Por classe de prioridade', contar(an, a => a.classe), tot)}
+    <h3>Incorporações x baixas</h3><div class="card"><table><tr><th>Mês</th><th>Entradas</th><th>Baixas</th></tr>${meses.map(m => `<tr><td>${m.split('-').reverse().join('/')}</td><td>${ent[m] || 0}</td><td>${bx[m] || 0}</td></tr>`).join('') || '<tr><td colspan="3" class="mut">Sem dados.</td></tr>'}</table></div>
+    <p class="mut">Ocupação e biomassa por viveiro: Mais → Viveiros.</p>`;
+}
+
+// ===================== Importação de dados =====================
+const IMPORTS = {
+  animais: { nome: 'Plantel (animais)', cols: 'PRODUTO (ou CHIP), SAFRA, SEXO, PAI, MAE, Tanque atual, RAZAO_PAI, RAZAO_MAE, CLASSE_PRIORIDADE' },
+  viveiros: { nome: 'Viveiros e tanques', cols: 'CODIGO, NOME, TIPO, CAPACIDADE, CAPACIDADE_KG, STATUS' },
+  canecas: { nome: 'Botijões e canecas', cols: 'BOTIJAO, CANECA, COR, CAPACIDADE' },
+  biometrias: { nome: 'Biometrias (histórico)', cols: 'CHIP, DATA, PESO, COMP_TOTAL, COMP_PADRAO, ALTURA' },
+  semen: { nome: 'Estoque de sêmen', cols: 'CHIP (do doador), DATA_COLETA, BOTIJAO, CANECA, DOSES, DOSES_DISPONIVEIS, COR_PALHETA, VOLUME, MOTILIDADE, VIGOR, CONCENTRACAO, DILUIDOR' },
+  manejos: { nome: 'Outros manejos (histórico)', cols: 'CHIP, DATA, MANEJO, DETALHE' }
+};
+let imp = null, impTipo = 'animais';
+function telaImportar(tipo) {
+  if (tipo) impTipo = tipo;
+  $('main').innerHTML = `<h2>Importar dados</h2>
+    <div class="card"><label style="margin-top:0">O que você vai importar?</label>
+    <div class="chips">${Object.keys(IMPORTS).map(k => `<button class="chip ${impTipo === k ? 'on' : ''}" onclick="telaImportar('${k}')">${IMPORTS[k].nome}</button>`).join('')}</div>
+    <div class="alert" style="margin-top:12px"><b>Colunas reconhecidas:</b> ${IMPORTS[impTipo].cols}.<br>A ordem não importa; maiúsculas e acentos também não. Chips são lidos como texto.</div>
+    ${impTipo !== 'animais' && impTipo !== 'viveiros' && impTipo !== 'canecas' ? '<p class="mut">Importe o plantel antes: os chips desta planilha precisam já estar cadastrados.</p>' : ''}
+    <label class="btn acc w" style="color:#fff;margin-top:8px">Escolher arquivo (.xlsx ou .csv)<input type="file" id="arq" accept=".xlsx,.xls,.csv" class="hide" onchange="lerPlanilha(this.files[0])"></label></div>
+    <div id="prev"></div>`;
+}
+function carregarXLSX() {
+  return window.XLSX ? Promise.resolve() : new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'xlsx.min.js'; s.onload = ok; s.onerror = () => no(new Error('Não consegui carregar o leitor de planilhas.')); document.head.appendChild(s); });
+}
+const normCol = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z]/g, '');
+function sexoDe(x) { x = normCol(x); return x.startsWith('M') ? 'M' : x.startsWith('F') ? 'F' : 'I'; }
+function dataISO(x) {
+  x = String(x || '').trim(); if (!x) return '';
+  let m = x.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+  m = x.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/); if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; return y + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0'); }
+  return '';
+}
+function porChip(c) { c = normChip(c); return Object.values(S.animais).find(a => a.chip === c && ativo(a)) || Object.values(S.animais).find(a => a.chip === c || a.chipsAnt.includes(c)); }
+async function lerPlanilha(f) {
+  if (!f) return;
+  try {
+    await carregarXLSX();
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '', dateNF: 'yyyy-mm-dd' });
+    const R = rows.map(r => { const o = {}; Object.keys(r).forEach(k => o[normCol(k)] = String(r[k]).trim()); return o; });
+    if (!R.length) throw new Error('A planilha está vazia.');
+    imp = (impTipo === 'animais' ? prepAnimais : prepOutros)(R);
+    const p = imp;
+    $('prev').innerHTML = `<div class="card"><h3 style="margin-top:0">Prévia</h3><p>${p.resumo}</p>
+      ${p.problemas.length ? `<div class="alert err"><b>${p.problemas.length} linha(s) não serão importadas:</b><br>${p.problemas.slice(0, 25).map(esc).join('<br>')}${p.problemas.length > 25 ? '<br>…' : ''}</div>` : ''}
+      ${p.avisos.map(a => `<div class="alert">${a}</div>`).join('')}
+      <button class="btn acc w" onclick="confirmarImport()" ${p.eventos.length ? '' : 'disabled'}>Importar ${p.n} registro(s)</button></div>`;
+  } catch (e) { toast(e.message, 'err'); }
+}
+const pega = (r, ...ks) => { for (const k of ks) if (r[k] !== undefined && r[k] !== '') return r[k]; return ''; };
+// valida eventos em sequência numa cópia do estado
+function testar(evs, rotulos) {
+  const t = clone(S), ok = [], prob = [];
+  evs.forEach((e, i) => { try { aplicar(t, e); ok.push(e); } catch (x) { prob.push((rotulos[i] || '') + ': ' + x.message); } });
+  return { ok, prob };
+}
+function prepOutros(R) {
+  const evs = [], rot = [], problemas = [], avisos = [];
+  if (impTipo === 'viveiros') {
+    R.forEach((r, i) => { const c = pega(r, 'CODIGO', 'VIVEIRO', 'TANQUE'); if (!c) return problemas.push('Linha ' + (i + 2) + ': sem código');
+      const ex = Object.values(S.viveiros).find(v => v.codigo.toLowerCase() === c.toLowerCase());
+      evs.push(ev('viveiro', { id: ex ? ex.id : uid(), codigo: c, nome: pega(r, 'NOME'), tipoUnidade: pega(r, 'TIPO') || 'Tanque', cap: pega(r, 'CAPACIDADE', 'CAPACIDADEANIMAIS'), capKg: pega(r, 'CAPACIDADEKG'), status: pega(r, 'STATUS', 'SITUACAO') || 'Ativo' })); rot.push(c); });
+  }
+  if (impTipo === 'canecas') {
+    R.forEach((r, i) => { const b = pega(r, 'BOTIJAO'), c = pega(r, 'CANECA'); if (!b || !c) return problemas.push('Linha ' + (i + 2) + ': falta botijão ou caneca');
+      if (Object.values(S.canecas).some(x => x.botijao === b && x.caneca === c)) return avisos.push('Botijão ' + esc(b) + ' / caneca ' + esc(c) + ' já existe (ignorada).');
+      evs.push(ev('caneca', { id: uid(), botijao: b, caneca: c, cor: pega(r, 'COR'), cap: pega(r, 'CAPACIDADE') })); rot.push('B' + b + '/C' + c); });
+  }
+  if (impTipo === 'biometrias' || impTipo === 'manejos') {
+    const linhas = [];
+    R.forEach((r, i) => { const a = porChip(pega(r, 'CHIP', 'PRODUTO')); const d = dataISO(pega(r, 'DATA'));
+      if (!a) return problemas.push('Linha ' + (i + 2) + ': chip ' + pega(r, 'CHIP', 'PRODUTO') + ' não cadastrado');
+      if (!d) return problemas.push('Linha ' + (i + 2) + ': data inválida');
+      linhas.push({ r, a, d }); });
+    linhas.sort((x, y) => x.d.localeCompare(y.d)).forEach(({ r, a, d }) => {
+      if (impTipo === 'biometrias') evs.push(ev('atividade', { animal: a.id, sub: 'Biometria', data: d, dados: { peso: pega(r, 'PESO', 'PESOG'), ct: pega(r, 'COMPTOTAL', 'CT', 'COMPRIMENTOTOTAL'), cp: pega(r, 'COMPPADRAO', 'CP', 'COMPRIMENTOPADRAO'), altura: pega(r, 'ALTURA') }, obs: 'importado' }));
+      else { const q = pega(r, 'MANEJO', 'TIPO'); evs.push(ev('atividade', { animal: a.id, sub: 'Outro manejo', data: d, dados: { qual: OUTROS.find(o => normCol(o) === normCol(q)) || q || 'Outro manejo', detalhe: pega(r, 'DETALHE', 'OBS', 'OBSERVACOES') }, obs: 'importado' })); }
+      rot.push(a.chip + ' (' + fData(d) + ')');
+    });
+  }
+  if (impTipo === 'semen') {
+    const novasCan = {};
+    R.forEach((r, i) => { const a = porChip(pega(r, 'CHIP', 'PRODUTO', 'DOADOR', 'CHIPDOADOR')); const b = pega(r, 'BOTIJAO'), c = pega(r, 'CANECA');
+      if (!a) return problemas.push('Linha ' + (i + 2) + ': doador não cadastrado');
+      if (!b || !c) return problemas.push('Linha ' + (i + 2) + ': falta botijão ou caneca');
+      let can = Object.values(S.canecas).find(x => x.botijao === b && x.caneca === c);
+      let cid = can ? can.id : novasCan[b + '|' + c];
+      if (!cid) { cid = uid(); novasCan[b + '|' + c] = cid; evs.push(ev('caneca', { id: cid, botijao: b, caneca: c })); rot.push('B' + b + '/C' + c); }
+      evs.push(ev('atividade', { animal: a.id, sub: 'Coleta de sêmen', data: dataISO(pega(r, 'DATACOLETA', 'DATA')) || hoje(), confirmaSexo: true, obs: 'importado',
+        dados: { doses: pega(r, 'DOSES', 'DOSESINICIAIS', 'DOSESCOLETADAS'), disponiveis: pega(r, 'DOSESDISPONIVEIS', 'SALDO'), cor: pega(r, 'CORPALHETA', 'COR'), caneca: cid, volume: pega(r, 'VOLUME'), motilidade: pega(r, 'MOTILIDADE'), vigor: pega(r, 'VIGOR'), conc: pega(r, 'CONCENTRACAO'), diluidor: pega(r, 'DILUIDOR') } }));
+      rot.push(a.chip); });
+    if (Object.keys(novasCan).length) avisos.push(Object.keys(novasCan).length + ' caneca(s) nova(s) serão criadas.');
+  }
+  const t = testar(evs, rot);
+  return { eventos: t.ok, n: t.ok.length, problemas: problemas.concat(t.prob), avisos, resumo: `<b>${t.ok.length}</b> registro(s) prontos para importar (${IMPORTS[impTipo].nome}).` };
+}
+function prepAnimais(R) {
+  R = R.map(r => ({ chip: pega(r, 'PRODUTO', 'CHIP', 'CODIGOCHIP'), safra: pega(r, 'SAFRA'), sexo: pega(r, 'SEXO'), pai: pega(r, 'PAI'), mae: pega(r, 'MAE'), viv: pega(r, 'TANQUEATUAL', 'TANQUE', 'VIVEIRO', 'VIVEIROATUAL'), rp: pega(r, 'RAZAOPAI'), rm: pega(r, 'RAZAOMAE'), classe: pega(r, 'CLASSEPRIORIDADE', 'CLASSE') })).filter(r => r.chip);
+  if (!R.length) throw new Error('Não encontrei a coluna PRODUTO/CHIP com dados.');
+  const vistos = {}, dup = [], curtos = [], jaExiste = [], ok = [], avisos = [];
+  R.forEach(r => {
+    const c = normChip(r.chip); if (/^\d+$/.test(r.chip) && c !== r.chip) curtos.push(r.chip);
+    r.chip = c;
+    if (vistos[c]) { dup.push(c); return; } vistos[c] = 1;
+    if (chipAtivo(S, c)) { jaExiste.push(c); return; }
+    ok.push(r);
+  });
+  const vivExist = {}; Object.values(S.viveiros).forEach(x => vivExist[x.codigo.toLowerCase()] = x.id);
+  const novosViv = [...new Set(ok.map(r => r.viv).filter(x => x && !vivExist[x.toLowerCase()]))];
+  const naPlan = {}; ok.forEach(r => naPlan[r.chip] = r);
+  const refs = {};
+  ok.forEach(r => [['pai', 'M'], ['mae', 'F']].forEach(([k, sx]) => { if (r[k]) { const c = normChip(r[k]); r[k] = c; if (!naPlan[c] && !Object.values(S.animais).some(a => a.chip === c)) refs[c] = sx; } }));
+  const evs = [], rot = [], idPorChip = {};
+  Object.values(S.animais).forEach(a => idPorChip[a.chip] = a.id);
+  novosViv.forEach(c => { const id = uid(); vivExist[c.toLowerCase()] = id; evs.push(ev('viveiro', { id, codigo: c, status: 'Ativo' })); rot.push('Viveiro ' + c); });
+  Object.keys(refs).forEach(c => { const id = uid(); idPorChip[c] = id; evs.push(ev('animal_novo', { id, chip: c, sexo: refs[c], status: 'Referência', importado: true })); rot.push(c); });
+  const papel = {}; ok.forEach(r => { if (r.pai) papel[r.pai] = 'M'; if (r.mae) papel[r.mae] = 'F'; });
+  ok.forEach(r => { const id = uid(); idPorChip[r.chip] = id; let sx = sexoDe(r.sexo); if (sx === 'I' && papel[r.chip]) sx = papel[r.chip];
+    evs.push(ev('animal_novo', { id, chip: r.chip, sexo: sx, safra: r.safra, classe: r.classe, razaoPai: r.rp, razaoMae: r.rm, viveiro: r.viv ? vivExist[r.viv.toLowerCase()] : '', importado: true })); rot.push(r.chip); });
+  ok.forEach(r => { if (r.pai || r.mae) { evs.push(ev('editar_animal', { id: idPorChip[r.chip], pai: r.pai ? idPorChip[r.pai] || '' : '', mae: r.mae ? idPorChip[r.mae] || '' : '' })); rot.push(r.chip + ' (pais)'); } });
+  const t = testar(evs, rot);
+  if (dup.length) avisos.push(`<b>${dup.length} chip(s) repetidos na planilha</b> (só a primeira linha será usada): <span class="mono">${dup.slice(0, 15).map(esc).join(', ')}${dup.length > 15 ? '…' : ''}</span>`);
+  if (jaExiste.length) avisos.push(jaExiste.length + ' chip(s) já cadastrados no sistema serão ignorados.');
+  if (curtos.length) avisos.push(`${curtos.length} chip(s) tinham menos de 15 dígitos (o Excel provavelmente apagou zeros à esquerda) e foram completados com zeros. Ex.: <span class="mono">${esc(curtos[0])} → ${esc(normChip(curtos[0]))}</span>`);
+  return { eventos: t.ok, n: ok.length, problemas: t.prob, avisos, resumo: `<b>${ok.length}</b> animais · <b>${novosViv.length}</b> viveiros novos${novosViv.length ? ' (' + novosViv.map(esc).join(', ') + ')' : ''} · <b>${Object.keys(refs).length}</b> pais/mães citados que não estão na planilha entram como referência genealógica.` };
+}
+function confirmarImport() {
+  const evs = imp.eventos;
+  const t = testar(evs, []);
+  fila.push(...t.ok); recalcular(); salvarLocal(); atualizarSync(); sincronizar();
+  $('prev').innerHTML = `<div class="card"><b>Importação concluída.</b> ${t.ok.length} registro(s) gravados${cfg.url ? ' e sendo enviados ao servidor' : ''}.</div>`;
+  imp = null;
+}
+
+// ===================== Pedigree =====================
+function telaPedigree() {
+  const safras = [...new Set(Object.values(S.animais).map(a => a.safra).filter(Boolean))].sort();
+  $('main').innerHTML = `<h2>Arquivo de pedigree</h2><div class="card">
+    <label style="margin-top:0">Animais</label><select id="pSafra"><option value="">Plantel completo</option>${safras.map(s => `<option>${esc(s)}</option>`).join('')}</select>
+    <label>Identificador</label><select id="pId"><option value="chip">Código do chip</option><option value="num">ID numérico recodificado (1, 2, 3…)</option></select>
+    <label>Pai/mãe desconhecido</label><select id="pZero"><option value="0">0</option><option value="">Campo vazio</option></select>
+    <label>Formato</label><select id="pFmt"><option value="csv">.csv</option><option value="txt">.txt (separado por espaço)</option><option value="tab">.txt (separado por tabulação)</option></select>
+    <div style="height:14px"></div><button class="btn w" onclick="exportarPedigree()">Baixar arquivo</button>
+    <p class="mut">Pais sempre aparecem antes dos filhos. Ancestrais dos animais filtrados entram automaticamente, e animais citados só como pais entram como fundadores (0 0).</p></div>`;
+}
+function exportarPedigree() {
+  const safra = v('pSafra'), modo = v('pId'), zero = $('pZero').value, fmt = v('pFmt');
+  const inc = new Set();
+  const add = id => { if (!id || inc.has(id) || !S.animais[id]) return; inc.add(id); add(S.animais[id].pai); add(S.animais[id].mae); };
+  Object.values(S.animais).filter(a => !safra || a.safra === safra).forEach(a => add(a.id));
+  const ordem = [], feito = new Set();
+  const visita = id => { if (!id || feito.has(id) || !inc.has(id)) return; feito.add(id); visita(S.animais[id].pai); visita(S.animais[id].mae); ordem.push(id); };
+  [...inc].sort((a, b) => String(S.animais[a].safra).localeCompare(String(S.animais[b].safra))).forEach(visita);
+  const num = {}; ordem.forEach((id, i) => num[id] = i + 1);
+  const rot = id => !id || !inc.has(id) ? zero : modo === 'num' ? num[id] : S.animais[id].chip;
+  const sep = fmt === 'csv' ? ',' : fmt === 'tab' ? '\t' : ' ';
+  const linhas = [['ID', 'ID_PAI', 'ID_MAE'].join(sep)].concat(ordem.map(id => [rot(id), rot(S.animais[id].pai), rot(S.animais[id].mae)].join(sep)));
+  baixar('pedigree' + (safra ? '_safra_' + safra : '') + (fmt === 'csv' ? '.csv' : '.txt'), linhas.join('\n'));
+  if (modo === 'num') baixar('pedigree_chave_ids.csv', ['ID,CHIP'].concat(ordem.map(id => num[id] + ',' + S.animais[id].chip)).join('\n'));
+}
+function baixar(nome, txt) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain;charset=utf-8' })); a.download = nome; a.click(); }
+
+// ===================== Configurações e pendências =====================
+function telaConfig() {
+  $('main').innerHTML = `<h2>Configurações</h2><div class="card">
+    <label style="margin-top:0">Nome do sistema</label><input id="cfNome" value="${esc(cfg.nome)}">
+    <div style="height:10px"></div><button class="btn sec w" onclick="cfg.nome=v('cfNome')||'Linhagem';LS.set('cfg',cfg);render();toast('Salvo.','ok')">Salvar nome</button></div>
+    <div class="card"><h3 style="margin-top:0">Servidor (Planilha Google)</h3>${formServidor()}
+    <p class="mut">Sem servidor, o sistema funciona em modo demonstração: os dados ficam só neste aparelho.</p>
+    ${ultimaSync ? `<p class="mut">Última sincronização: ${new Date(ultimaSync).toLocaleString('pt-BR')}</p>` : ''}</div>
+    <div class="card"><h3 style="margin-top:0">Cópia de segurança</h3><button class="btn sec w" onclick="baixar('plantel_backup_'+hoje()+'.json',JSON.stringify({base,fila,recusados}))">Baixar cópia dos dados deste aparelho</button></div>`;
+}
+function telaPendencias() {
+  $('main').innerHTML = `<h2>Pendências</h2>
+    <div class="card"><h3 style="margin-top:0">Aguardando envio (${fila.length})</h3>${fila.slice(-50).reverse().map(e => `<div class="item"><div class="m"><b>${esc(e.p.sub || e.tipo)}</b><div class="s">${new Date(e.ts).toLocaleString('pt-BR')}${e._erro ? ' · <span class="tag bad">' + esc(e._erro) + '</span>' : ''}</div></div></div>`).join('') || '<p class="mut">Tudo enviado.</p>'}
+    ${fila.length ? '<button class="btn w" onclick="sincronizar(true)">Enviar agora</button>' : ''}</div>
+    <div class="card"><h3 style="margin-top:0">Recusados pelo servidor (${recusados.length})</h3>
+    <p class="mut">Acontece quando duas pessoas lançaram algo conflitante sem internet (ex.: o mesmo chip em dois animais). Confira e lance de novo se for o caso.</p>
+    ${recusados.slice(0, 50).map(e => `<div class="item"><div class="m"><b>${esc(e.p.sub || e.tipo)}</b> ${e.p.chip ? '<span class="mono">' + esc(e.p.chip) + '</span>' : ''}<div class="s">${esc(e.erro)} · ${new Date(e.ts).toLocaleString('pt-BR')}</div></div></div>`).join('') || '<p class="mut">Nenhum.</p>'}
+    ${recusados.length ? `<button class="btn sec w" onclick="if(confirm('Limpar a lista de recusados?')){recusados=[];salvarLocal();telaPendencias()}">Limpar lista</button>` : ''}</div>`;
+}
+
+// ===================== Melhorias e correções =====================
+function telaSugestoes() {
+  const lista = (S.sugestoes || []).slice().reverse();
+  const telas = ['Geral', 'Início', 'Lançar manejo', 'Ficha do animal', 'Banco de sêmen', 'Viveiros', 'Importação', 'Pedigree', 'Painéis'];
+  $('main').innerHTML = `<h2>Melhorias e correções</h2>
+    <div class="card"><p class="mut" style="margin-top:0">Encontrou um erro ou tem uma ideia? Descreva aqui. Fica registrado na planilha (aba Sugestoes) com seu nome e a data.</p>
+    <div class="chips"><button class="chip on" id="tgM" onclick="this.classList.add('on');$('tgC').classList.remove('on')">Melhoria</button><button class="chip" id="tgC" onclick="this.classList.add('on');$('tgM').classList.remove('on')">Correção (erro)</button></div>
+    <label>Em qual parte do sistema?</label><select id="sgTela">${telas.map(t => `<option>${t}</option>`).join('')}</select>
+    <label>Descrição</label><textarea id="sgTxt" rows="4" placeholder="Ex.: incluir temperatura da água na biometria"></textarea>
+    <div style="height:12px"></div><button class="btn acc w" onclick="enviarSugestao()">Enviar</button></div>
+    <h3>Registradas (${lista.length})</h3>
+    <div class="card" style="padding:4px 12px">${lista.map(x => `<div class="item" style="cursor:default;align-items:flex-start"><div class="m">
+      <div><span class="tag">${esc(x.tipo)}</span><span class="st ${esc(String(x.status).split(' ')[0])}">${esc(x.status)}</span> <small class="mut">${esc(x.tela)}</small></div>
+      <div style="margin:6px 0">${esc(x.texto)}</div>
+      <div class="s">${esc(x.user)} · ${new Date(x.data).toLocaleDateString('pt-BR')}</div>
+      ${x.resposta ? `<div class="alert" style="margin:6px 0 0">Resposta: ${esc(x.resposta)}</div>` : ''}
+      <div class="noprint" style="margin-top:6px"><select style="min-height:36px;padding:6px;width:auto" onchange="mudarSug('${x.id}',this.value)">${['Nova', 'Em andamento', 'Feita', 'Descartada'].map(o => `<option ${x.status === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
+    </div></div>`).join('') || '<p class="mut">Nenhuma ainda.</p>'}</div>`;
+}
+function enviarSugestao() {
+  try { lancar([ev('sugestao', { tipo: $('tgC').classList.contains('on') ? 'Correção' : 'Melhoria', tela: v('sgTela'), texto: v('sgTxt') })]); toast('Enviado. Obrigado!', 'ok'); telaSugestoes(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+function mudarSug(id, st) { try { lancar([ev('sugestao_status', { id, status: st })]); telaSugestoes(); } catch (e) { toast(e.message, 'err'); } }
+
+// ===================== Início do app =====================
+recalcular();
+render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+sincronizar();
+</script>
+</body>
+</html>
