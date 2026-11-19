@@ -1,4 +1,4 @@
-import asyncio, json, sys, urllib.request
+import asyncio, json, sys, urllib.request, openpyxl
 from playwright.async_api import async_playwright
 
 URL = 'http://localhost:8765/index.html'
@@ -86,11 +86,11 @@ async def main():
         n = await S(pg, "Object.values(S.animais).filter(a=>a.status!=='Referência').length")
         ok('R2', n >= 6, f'animais importados: {n} (esperado 6 ou 7)')
         c = await S(pg, "Object.values(S.animais).map(a=>a.chip)")
-        ok('R2', '000000012345678' in c, 'chip que perdeu zeros foi completado (000000012345678)')
+        ok('R2', '076001234567890' in c, 'chip que perdeu zeros foi completado (076001234567890)')
         viv = await S(pg, "Object.values(S.viveiros).map(v=>v.codigo)")
         ok('R2', len([v for v in viv if v.lower() == 'v-02']) == 1, f'viveiro V-02/v-02 criado uma vez só: {viv}')
         a5 = await S(pg, "(()=>{const a=Object.values(S.animais).find(a=>a.chip==='982000200000005');return a&&{viv:S.viveiros[a.viveiro]&&S.viveiros[a.viveiro].codigo,pai:a.pai&&S.animais[a.pai].chip,sexo:a.sexo}})()")
-        ok('R2', a5 and a5['viv'] and a5['pai'] == '000000012345678', f'animal 5 com viveiro e pai corretos: {a5}')
+        ok('R2', a5 and a5['viv'] and a5['pai'] == '076001234567890', f'animal 5 com viveiro e pai corretos: {a5}')
         a6 = await S(pg, "(()=>{const a=Object.values(S.animais).find(a=>a.chip==='982000200000006');return a&&{pai:a.pai}})()")
         ok('R2', a6 is not None and not a6['pai'], 'pai inválido (fêmea como pai) é rejeitado mas o animal entra')
         ok('R2', 'Fêmea' in prev or 'Macho' in prev, 'prévia lista o problema do pai inválido')
@@ -238,6 +238,16 @@ async def main():
         r = await pg2.evaluate("chamar({chave:'errada',user:'Tiago',pin:'1234',login:true})")
         ok('R10', not r['ok'], 'chave errada é recusada')
         ok('R10', not [e for e in erros if 'Failed to load resource' not in e], 'sem erros de script na sessão toda: ' + str(erros[:3]))
+        # ---------- extra: exportação Excel ----------
+        print('Extra — exportar para Excel')
+        async with pg.expect_download() as d:
+            await pg.evaluate("exportarExcel()")
+        dl = await d.value; await dl.save_as('export.xlsx')
+        wb = openpyxl.load_workbook('export.xlsx')
+        ok('X', set(['Animais','Viveiros','Biometrias','Estoque sêmen','Todos os manejos','Movimentações']).issubset(wb.sheetnames), f'abas do Excel: {wb.sheetnames}')
+        chips = [r[0].value for r in wb['Animais'].iter_rows(min_row=2)]
+        ok('X', '076001234567890' in chips and all(isinstance(c, str) for c in chips), 'chips saem como texto, com zeros à esquerda')
+        ok('X', wb['Biometrias'].max_row >= 4, f"biometrias exportadas: {wb['Biometrias'].max_row-1}")
         await b.close()
 
     falhas = [r for r in resultados if not r[1]]

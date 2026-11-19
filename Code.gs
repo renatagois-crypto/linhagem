@@ -7,11 +7,19 @@ function novoEstado() {
   return { animais: {}, viveiros: {}, canecas: {}, lotes: {}, atividades: [], movs: [], sugestoes: [], usados: {} };
 }
 
+// Padrão ISO 11784/11785 (FDX-B/HDX, 134,2 kHz): 15 dígitos numéricos (3 de país/fabricante + 12 do animal).
+// Leitores às vezes mostram "985.121012345678" ou "985 121012345678": os separadores são removidos.
+// Se o Excel apagou zeros à esquerda (ex.: código de país 076), um número de 11 a 14 dígitos volta a ter 15.
+// Códigos antigos não ISO (FDX-A: 9 ou 10 caracteres, às vezes com letras) são mantidos como estão, em maiúsculas.
 function normChip(c) {
-  c = String(c == null ? '' : c).trim().replace(/\s+/g, '');
-  if (/^\d+(\.0+)?$/.test(c)) c = c.replace(/\.0+$/, '');
-  if (/^\d+$/.test(c) && c.length < 15) c = ('000000000000000' + c).slice(-15);
-  return c;
+  c = String(c == null ? '' : c).trim();
+  if (/^\d+\.0+$/.test(c)) c = c.replace(/\.0+$/, '');
+  var semSep = c.replace(/[\s.\-_]/g, '');
+  if (/^\d+$/.test(semSep)) {
+    if (semSep.length >= 11 && semSep.length < 15) semSep = ('000000000000000' + semSep).slice(-15);
+    return semSep;
+  }
+  return semSep.toUpperCase();
 }
 
 function chipAtivo(s, chip, exceto) {

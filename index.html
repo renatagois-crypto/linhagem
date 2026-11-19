@@ -583,8 +583,9 @@ function acaoLote(id) {
 
 // ===================== Mais =====================
 function telaMais() {
-  const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)'], ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ['pendencias', 'Pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)'], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
-  $('main').innerHTML = `<h2>Mais</h2><div class="card" style="padding:4px 12px">${it.map(([k, t, s]) => `<div class="item" onclick="ir('${k}')"><div class="m"><b>${t}</b><div class="s">${s}</div></div><span>›</span></div>`).join('')}</div>
+
+  const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)'], ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ['pendencias', 'Pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)'], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
+  $('main').innerHTML = `<h2>Mais</h2><div class="card" style="padding:4px 12px">${it.map(([k, t, s]) => `<div class="item" onclick="${k === 'excel' ? 'exportarExcel()' : `ir('${k}')`}"><div class="m"><b>${t}</b><div class="s">${s}</div></div><span>›</span></div>`).join('')}</div>
     <p class="mut">Usuário: <b>${esc(user.nome)}</b> · <a class="lk" onclick="if(confirm('Sair?')){user=null;LS.set('user',null);render()}">Sair</a></p>`;
 }
 function ocupacao() {
@@ -750,6 +751,8 @@ function prepAnimais(R) {
   R = R.map(r => ({ chip: pega(r, 'PRODUTO', 'CHIP', 'CODIGOCHIP'), safra: pega(r, 'SAFRA'), sexo: pega(r, 'SEXO'), pai: pega(r, 'PAI'), mae: pega(r, 'MAE'), viv: pega(r, 'TANQUEATUAL', 'TANQUE', 'VIVEIRO', 'VIVEIROATUAL'), rp: pega(r, 'RAZAOPAI'), rm: pega(r, 'RAZAOMAE'), classe: pega(r, 'CLASSEPRIORIDADE', 'CLASSE') })).filter(r => r.chip);
   if (!R.length) throw new Error('Não encontrei a coluna PRODUTO/CHIP com dados.');
   const vistos = {}, dup = [], curtos = [], jaExiste = [], ok = [], avisos = [];
+  const cient = R.filter(r => /^\d+(\.\d+)?E\+?\d+$/i.test(r.chip)).map(r => r.chip);
+  R = R.filter(r => !/^\d+(\.\d+)?E\+?\d+$/i.test(r.chip));
   R.forEach(r => {
     const c = normChip(r.chip); if (/^\d+$/.test(r.chip) && c !== r.chip) curtos.push(r.chip);
     r.chip = c;
@@ -771,6 +774,7 @@ function prepAnimais(R) {
     evs.push(ev('animal_novo', { id, chip: r.chip, sexo: sx, safra: r.safra, classe: r.classe, razaoPai: r.rp, razaoMae: r.rm, viveiro: r.viv ? vivExist[r.viv.toLowerCase()] : '', importado: true })); rot.push(r.chip); });
   ok.forEach(r => { if (r.pai || r.mae) { evs.push(ev('editar_animal', { id: idPorChip[r.chip], pai: r.pai ? idPorChip[r.pai] || '' : '', mae: r.mae ? idPorChip[r.mae] || '' : '' })); rot.push(r.chip + ' (pais)'); } });
   const t = testar(evs, rot);
+  if (cient.length) avisos.push(`<b>${cient.length} chip(s) estão em notação científica</b> (ex.: ${esc(cient[0])}) e não podem ser recuperados. No Excel, formate a coluna do chip como Texto, digite de novo esses números e importe outra vez.`);
   if (dup.length) avisos.push(`<b>${dup.length} chip(s) repetidos na planilha</b> (só a primeira linha será usada): <span class="mono">${dup.slice(0, 15).map(esc).join(', ')}${dup.length > 15 ? '…' : ''}</span>`);
   if (jaExiste.length) avisos.push(jaExiste.length + ' chip(s) já cadastrados no sistema serão ignorados.');
   if (curtos.length) avisos.push(`${curtos.length} chip(s) tinham menos de 15 dígitos (o Excel provavelmente apagou zeros à esquerda) e foram completados com zeros. Ex.: <span class="mono">${esc(curtos[0])} → ${esc(normChip(curtos[0]))}</span>`);
@@ -782,6 +786,45 @@ function confirmarImport() {
   fila.push(...t.ok); recalcular(); salvarLocal(); atualizarSync(); sincronizar();
   $('prev').innerHTML = `<div class="card"><b>Importação concluída.</b> ${t.ok.length} registro(s) gravados${cfg.url ? ' e sendo enviados ao servidor' : ''}.</div>`;
   imp = null;
+}
+
+// ===================== Exportar para Excel =====================
+async function exportarExcel() {
+  try {
+    await carregarXLSX();
+    const ch = id => S.animais[id] ? S.animais[id].chip : '';
+    const vc = id => S.viveiros[id] ? S.viveiros[id].codigo : '';
+    const filhos = {}; Object.values(S.animais).forEach(a => { [a.pai, a.mae].forEach(p => { if (p) filhos[p] = (filhos[p] || 0) + 1; }); });
+    const ult = {}; S.atividades.forEach(a => { if (a.tipo === 'Biometria' && a.dados.peso != null) ult[a.animal] = a; });
+    const dosesDisp = {}; Object.values(S.lotes).forEach(l => dosesDisp[l.doador] = (dosesDisp[l.doador] || 0) + (l.disp || 0));
+    const abas = {
+      Animais: [['Chip', 'Chips anteriores', 'Sexo', 'Safra', 'Status', 'Viveiro', 'Pai (chip)', 'Mãe (chip)', 'Classe prioridade', 'Razão pai', 'Razão mãe', 'Nº filhos', 'Último peso (g)', 'Data último peso', 'Doses de sêmen disponíveis']]
+        .concat(Object.values(S.animais).sort((a, b) => a.chip.localeCompare(b.chip)).map(a => [a.chip, a.chipsAnt.join('; '), SEXO[a.sexo] || a.sexo, a.safra, a.status, vc(a.viveiro), ch(a.pai), ch(a.mae), a.classe, a.razaoPai, a.razaoMae, filhos[a.id] || 0, ult[a.id] ? ult[a.id].dados.peso : '', ult[a.id] ? String(ult[a.id].data).slice(0, 10) : '', dosesDisp[a.id] || 0])),
+      Viveiros: (() => { const oc = ocupacao(); return [['Código', 'Nome', 'Tipo', 'Situação', 'Capacidade (animais)', 'Animais hoje', 'Machos', 'Fêmeas', 'Indefinidos', 'Biomassa estimada (kg)']]
+        .concat(Object.values(S.viveiros).map(v => { const o = oc[v.id]; return [v.codigo, v.nome, v.tipo, v.status, v.cap == null ? '' : v.cap, o.n, o.M, o.F, o.I, Math.round(o.kg * 10) / 10]; })); })(),
+      Biometrias: [['Data', 'Chip', 'Peso (g)', 'Comp. total (cm)', 'Comp. padrão (cm)', 'Altura (cm)', 'Fator K', 'Ganho desde a anterior (g)', 'Responsável']]
+        .concat(S.atividades.filter(a => a.tipo === 'Biometria').map(a => [String(a.data).slice(0, 10), ch(a.animal), a.dados.peso, a.dados.ct ?? '', a.dados.cp ?? '', a.dados.altura ?? '', a.dados.k ?? '', a.dados.ganho ?? '', a.user])),
+      'Estoque sêmen': [['Doador (chip)', 'Safra do doador', 'Data coleta', 'Botijão', 'Caneca', 'Cor palheta', 'Doses coletadas', 'Doses disponíveis', 'Status']]
+        .concat(Object.values(S.lotes).map(l => { const c = S.canecas[l.caneca] || {}, d = S.animais[l.doador] || {}; return [ch(l.doador), d.safra || '', String(l.data).slice(0, 10), c.botijao || '', c.caneca || '', l.cor, l.ini, l.disp, l.status]; })),
+      'Todos os manejos': [['Data', 'Chip', 'Tipo', 'Resumo', 'Viveiro origem', 'Viveiro destino', 'Responsável', 'Observações']]
+        .concat(S.atividades.slice().sort((a, b) => String(a.data).localeCompare(String(b.data))).map(a => [String(a.data).slice(0, 10), ch(a.animal), a.tipo, a.resumo, vc(a.origem), vc(a.destino), a.user, a.obs])),
+      Movimentações: [['Data', 'Chip', 'De', 'Para', 'Motivo', 'Responsável']]
+        .concat(S.movs.map(m => [String(m.data).slice(0, 10), ch(m.animal), vc(m.origem), vc(m.destino), m.motivo, m.user])),
+      Sugestões: [['Data', 'Usuário', 'Tipo', 'Tela', 'Texto', 'Status', 'Resposta']]
+        .concat((S.sugestoes || []).map(x => [String(x.data).slice(0, 10), x.user, x.tipo, x.tela, x.texto, x.status, x.resposta]))
+    };
+    const wb = XLSX.utils.book_new();
+    Object.keys(abas).forEach(nome => {
+      const ws = XLSX.utils.aoa_to_sheet(abas[nome]);
+      // chips sempre como texto, para o Excel não apagar zeros nem virar notação científica
+      Object.keys(ws).forEach(k => { if (k[0] !== '!' && ws[k].t === 's') ws[k].z = '@'; });
+      ws['!cols'] = abas[nome][0].map((h, i) => ({ wch: Math.max(10, Math.min(40, ...abas[nome].slice(0, 200).map(r => String(r[i] == null ? '' : r[i]).length + 2))) }));
+      XLSX.utils.book_append_sheet(wb, ws, nome);
+    });
+    if (window.__previa) return toast('Na prévia o download é bloqueado. No app instalado o arquivo baixa direto.', 'err');
+    XLSX.writeFile(wb, 'Linhagem_' + hoje() + '.xlsx');
+    toast('Arquivo Excel gerado.', 'ok');
+  } catch (e) { toast('Não consegui gerar o Excel: ' + e.message, 'err'); }
 }
 
 // ===================== Pedigree =====================
