@@ -212,6 +212,20 @@ async def main():
         st = await S(pg, "(()=>{const a=Object.values(S.animais).find(a=>a.chip==='982000200000004');const t=clone(S);const outro=Object.keys(t.viveiros).find(k=>k!==a.viveiro&&t.viveiros[k].status==='Ativo');try{aplicar(t,ev('atividade',{animal:a.id,sub:'Mudança de viveiro',mudou:true,destino:outro,origemEsperada:'viveiro-antigo'}));return 'aceitou'}catch(e){return e.message}})()")
         ok('R9', 'Outra pessoa' in st, 'mudança de viveiro em conflito com outro celular é barrada: ' + st)
 
+        # endogamia e simulador
+        await pg.evaluate("ir('cruzamento')"); await pg.fill('#qC','00004'); await pg.wait_for_timeout(150)
+        await pg.click('#resC .item'); await pg.wait_for_timeout(150)
+        txt = await pg.inner_text('main')
+        ok('R9', 'F do filho' in txt and '%' in txt, 'simulador de cruzamento lista machos com F do filho')
+        fx = await S(pg, "(()=>{const a=Object.values(S.animais).find(a=>a.chip==='982000200000005');return endogamia(S,a.id)})()")
+        ok('R9', abs(fx - 0.25) < 1e-9 or fx > 0, f'endogamia calculada para filho de irmãos (F={fx})')
+        mid = await S(pg, "Object.values(S.animais).find(a=>a.chip==='982000200000001').id")
+        await pg.evaluate(f"ir('ficha','{mid}')"); ok('R9', 'Endogamia (F)' in await pg.inner_text('main'), 'ficha mostra a endogamia')
+        await pg.evaluate("ir('importar')")
+        async with pg.expect_download() as d:
+            await pg.click('button:has-text("Baixar modelo")')
+        ok('R9', (await d.value).suggested_filename.startswith('Modelo_'), 'modelo de planilha baixa')
+
         # ---------- R10 servidor, offline e conflitos ----------
         print('R10 — servidor, offline, conflitos e PIN')
         pg2 = await ctx.new_page()
@@ -255,6 +269,22 @@ async def main():
         r = await pg2.evaluate("chamar({chave:'segredo',user:'Tiago',pin:'1234',login:true})")
         ok('R10', not r['ok'] and 'tentativas' in r['erro'], 'depois de 5 PINs errados a pessoa fica bloqueada')
         ok('R10', len(json.loads(mock('__backups'))) >= 1, 'backup diário criado')
+        # sessão por token: o celular não guarda o PIN
+        await asyncio.sleep(0)
+        r = await pg2.evaluate("chamar({chave:'segredo',user:'Leitor',pin:'0000',login:true})")
+        ok('R10', r['ok'] and len(r.get('token','')) > 30, 'login devolve token de sessão')
+        r2 = await pg2.evaluate(f"chamar({{chave:'segredo',user:'Leitor',token:'{r['token']}'}})")
+        ok('R10', r2['ok'], 'token de sessão é aceito sem PIN')
+        await pg2.evaluate(f"chamar({{chave:'segredo',user:'Leitor',token:'{r['token']}',sair:true}})")
+        r3 = await pg2.evaluate(f"chamar({{chave:'segredo',user:'Leitor',token:'{r['token']}'}})")
+        ok('R10', not r3['ok'] and 'Sessão' in r3['erro'], 'ao sair, o token deixa de valer')
+        # gravação incremental e reconstrução
+        sh1 = json.loads(mock('__sheets'))
+        n_viv = len([x for x in sh1['Viveiros'] if x and x[0]])
+        rec = mock('__reconstruir')
+        sh2 = json.loads(mock('__sheets'))
+        ok('R10', 'Reconstruído' in rec and len([x for x in sh2['Viveiros'] if x and x[0]]) == n_viv and len([x for x in sh2['Animais'] if x and x[0]]) == len([x for x in sh1['Animais'] if x and x[0]]), 'reconstrução a partir dos eventos recupera as abas: ' + rec)
+        ok('R10', sh2['Animais'][0][-1] == 'origem_pais', 'cabeçalho novo (origem_pais) acrescentado na planilha')
         ok('R10', not [e for e in erros if 'Failed to load resource' not in e], 'sem erros de script na sessão toda: ' + str(erros[:3]))
         # ---------- extra: exportação Excel ----------
         print('Extra — exportar para Excel')

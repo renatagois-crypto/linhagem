@@ -125,7 +125,7 @@ function aplicar(s, ev) {
       s.animais[p.id] = {
         id: p.id, chip: chip, chipsAnt: [], sexo: p.sexo || 'I', safra: p.safra || '', pai: p.pai || '', mae: p.mae || '',
         viveiro: '', status: p.status || 'Ativo', classe: p.classe || '', razaoPai: p.razaoPai || '', razaoMae: p.razaoMae || '',
-        cadastro: ev.ts
+        cadastro: ev.ts, origemPais: p.origemPais || ''
       };
       if (p.status === 'Referência') break; // pai/mãe citado na planilha, sem estar no plantel
       registrar(s, ev, p.id, p.importado ? 'Cadastro (importação)' : 'Chipagem', 'Chip ' + chip, {}, '', p.viveiro || '');
@@ -142,7 +142,7 @@ function aplicar(s, ev) {
         }
       }
       validarPais(s, a.id, novoPai, novaMae, p.safra !== undefined ? p.safra : a.safra);
-      ['sexo', 'safra', 'classe', 'razaoPai', 'razaoMae', 'status'].forEach(function (c) { if (p[c] !== undefined) a[c] = p[c]; });
+      ['sexo', 'safra', 'classe', 'razaoPai', 'razaoMae', 'status', 'origemPais'].forEach(function (c) { if (p[c] !== undefined) a[c] = p[c]; });
       a.pai = novoPai || ''; a.mae = novaMae || '';
       break;
     }
@@ -247,4 +247,38 @@ function aplicar(s, ev) {
     default: erro('Tipo de lançamento desconhecido: ' + ev.tipo);
   }
   s.usados[ev.uid] = 1;
+}
+
+// ===== Genética: parentesco (coancestria) e endogamia pelo pedigree =====
+// geração: fundadores = 0; filhos = 1 + geração do pai/mãe mais novo
+function geracao(s, id, memo) {
+  if (!id || !s.animais[id]) return -1;
+  if (memo[id] !== undefined) return memo[id];
+  memo[id] = 0; // evita laço
+  var a = s.animais[id];
+  memo[id] = 1 + Math.max(geracao(s, a.pai, memo), geracao(s, a.mae, memo));
+  return memo[id];
+}
+function novoCalc() { return { g: {}, f: {} }; }
+// coancestria f(x,y): probabilidade de um alelo tirado de x e um de y serem idênticos por descendência
+function coancestria(s, x, y, c) {
+  c = c || novoCalc();
+  if (!x || !y || !s.animais[x] || !s.animais[y]) return 0;
+  var k = x < y ? x + '|' + y : y + '|' + x;
+  if (c.f[k] !== undefined) return c.f[k];
+  var r;
+  if (x === y) r = 0.5 * (1 + endogamia(s, x, c));
+  else {
+    if (geracao(s, x, c.g) > geracao(s, y, c.g)) { var t = x; x = y; y = t; } // y é o mais novo (não pode ser ancestral de x)
+    var b = s.animais[y];
+    r = 0.5 * (coancestria(s, x, b.pai, c) + coancestria(s, x, b.mae, c));
+  }
+  c.f[k] = r;
+  return r;
+}
+// coeficiente de endogamia F do animal = coancestria entre o pai e a mãe
+function endogamia(s, id, c) {
+  var a = s.animais[id];
+  if (!a || !a.pai || !a.mae) return 0;
+  return coancestria(s, a.pai, a.mae, c || novoCalc());
 }
