@@ -205,6 +205,13 @@ async def main():
         ordem_ok = all((l[1] == '0' or pos[l[1]] < i) and (l[2] == '0' or pos[l[2]] < i) for i, l in enumerate(linhas))
         ok('R9', ordem_ok and len(linhas) >= 7, f'pedigree numérico com pais antes dos filhos ({len(linhas)} linhas)')
 
+        # safra do pai posterior à do filho
+        st = await S(pg, "(()=>{try{aplicar(clone(S),ev('animal_novo',{id:'zz',chip:'982000777000001',safra:'2015',pai:Object.values(S.animais).find(a=>a.chip==='982000200000001').id}));return 'aceitou'}catch(e){return e.message}})()")
+        ok('R9', 'safra' in st, 'pai de safra posterior ao filho é barrado: ' + st)
+        # conflito: animal movido por outra pessoa enquanto este celular estava offline
+        st = await S(pg, "(()=>{const a=Object.values(S.animais).find(a=>a.chip==='982000200000004');const t=clone(S);const outro=Object.keys(t.viveiros).find(k=>k!==a.viveiro&&t.viveiros[k].status==='Ativo');try{aplicar(t,ev('atividade',{animal:a.id,sub:'Mudança de viveiro',mudou:true,destino:outro,origemEsperada:'viveiro-antigo'}));return 'aceitou'}catch(e){return e.message}})()")
+        ok('R9', 'Outra pessoa' in st, 'mudança de viveiro em conflito com outro celular é barrada: ' + st)
+
         # ---------- R10 servidor, offline e conflitos ----------
         print('R10 — servidor, offline, conflitos e PIN')
         pg2 = await ctx.new_page()
@@ -230,13 +237,24 @@ async def main():
         rec = await pg2.evaluate("recusados.map(r=>r.erro)")
         ok('R10', len(rec) == 1 and 'ativo' in rec[0], f'conflito vai para Recusados com motivo: {rec}')
         ok('R10', await pg2.evaluate("fila.length") == 0, 'fila esvazia depois de sincronizar')
-        mock('__users')
-        r = await pg2.evaluate("chamar({chave:'segredo',user:'Tiago',pin:'9999',login:true})")
-        ok('R10', not r['ok'], 'PIN errado é recusado')
+        # pessoas e PINs (primeiro acesso vira administrador)
+        r = await pg2.evaluate("chamar({chave:'segredo',user:'Tiago',pin:'',acao:'usuario',dados:{nome:'Tiago',pin:'1234',perfil:'Administrador',ativo:true}})")
+        ok('R10', r['ok'], 'primeiro acesso cadastra o administrador: ' + str(r.get('erro','')))
+        r = await pg2.evaluate("chamar({chave:'segredo',user:'Tiago',pin:'1234',acao:'usuario',dados:{nome:'Leitor',pin:'0000',perfil:'Consulta',ativo:true}})")
+        ok('R10', r['ok'] and len(r['usuarios']) == 2, 'administrador cadastra outra pessoa')
+        sh = json.loads(mock('__sheets'))
+        ok('R10', all(row[1] not in ('1234', '0000') and len(row[1]) > 20 for row in sh['Usuarios'][1:]), 'PIN gravado cifrado, nunca em texto')
+        r = await pg2.evaluate("chamar({chave:'segredo',user:'Leitor',pin:'0000',acao:'usuario',dados:{nome:'X',pin:'1111'}})")
+        ok('R10', not r['ok'] and 'administrador' in r['erro'], 'só o administrador cadastra pessoas')
         r = await pg2.evaluate("chamar({chave:'segredo',user:'Leitor',pin:'0000',eventos:[{uid:'q1',tipo:'viveiro',ts:'x',p:{id:'v9',codigo:'X9'}}]})")
         ok('R10', not r['ok'] and 'consulta' in r['erro'].lower(), 'perfil Consulta não consegue lançar')
         r = await pg2.evaluate("chamar({chave:'errada',user:'Tiago',pin:'1234',login:true})")
         ok('R10', not r['ok'], 'chave errada é recusada')
+        for i in range(5):
+            r = await pg2.evaluate("chamar({chave:'segredo',user:'Tiago',pin:'9999',login:true})")
+        r = await pg2.evaluate("chamar({chave:'segredo',user:'Tiago',pin:'1234',login:true})")
+        ok('R10', not r['ok'] and 'tentativas' in r['erro'], 'depois de 5 PINs errados a pessoa fica bloqueada')
+        ok('R10', len(json.loads(mock('__backups'))) >= 1, 'backup diário criado')
         ok('R10', not [e for e in erros if 'Failed to load resource' not in e], 'sem erros de script na sessão toda: ' + str(erros[:3]))
         # ---------- extra: exportação Excel ----------
         print('Extra — exportar para Excel')

@@ -46,18 +46,26 @@ function ehAncestral(s, anc, id) {
 
 function erro(msg) { throw new Error(msg); }
 
-function validarPais(s, id, pai, mae) {
+function anoSafra(x) { var m = String(x == null ? '' : x).match(/(19|20)\d{2}/); return m ? parseInt(m[0], 10) : null; }
+// pai e mãe precisam ser de safra anterior à do filho (quando as duas safras são conhecidas)
+function checarSafra(pai, safraFilho, papel) {
+  var a = anoSafra(pai.safra), b = anoSafra(safraFilho);
+  if (a && b && a >= b) erro((papel === 'pai' ? 'O pai' : 'A mãe') + ' (' + pai.chip + ') é da safra ' + pai.safra + ', igual ou posterior à safra do filho (' + safraFilho + ').');
+}
+function validarPais(s, id, pai, mae, safraFilho) {
   if (pai) {
     var p = s.animais[pai];
     if (!p) erro('Pai não encontrado.');
     if (p.sexo !== 'M') erro('O pai (' + p.chip + ') não está cadastrado como Macho.');
     if (id && ehAncestral(s, id, pai)) erro('Ciclo na genealogia: o animal não pode ser ancestral do próprio pai.');
+    checarSafra(p, safraFilho, 'pai');
   }
   if (mae) {
     var m = s.animais[mae];
     if (!m) erro('Mãe não encontrada.');
     if (m.sexo !== 'F') erro('A mãe (' + m.chip + ') não está cadastrada como Fêmea.');
     if (id && ehAncestral(s, id, mae)) erro('Ciclo na genealogia: o animal não pode ser ancestral da própria mãe.');
+    checarSafra(m, safraFilho, 'mãe');
   }
 }
 
@@ -113,7 +121,7 @@ function aplicar(s, ev) {
       if (dono) erro('O chip ' + chip + ' já está ativo em outro animal.');
       if (s.animais[p.id]) erro('Animal já cadastrado.');
       if (p.viveiro && !s.viveiros[p.viveiro]) erro('Viveiro não encontrado.');
-      validarPais(s, null, p.pai, p.mae);
+      validarPais(s, null, p.pai, p.mae, p.safra);
       s.animais[p.id] = {
         id: p.id, chip: chip, chipsAnt: [], sexo: p.sexo || 'I', safra: p.safra || '', pai: p.pai || '', mae: p.mae || '',
         viveiro: '', status: p.status || 'Ativo', classe: p.classe || '', razaoPai: p.razaoPai || '', razaoMae: p.razaoMae || '',
@@ -133,7 +141,7 @@ function aplicar(s, ev) {
           if ((fi.pai === a.id && p.sexo !== 'M') || (fi.mae === a.id && p.sexo !== 'F')) erro('Não dá para mudar o sexo: o animal já é pai/mãe registrado de outros animais.');
         }
       }
-      validarPais(s, a.id, novoPai, novaMae);
+      validarPais(s, a.id, novoPai, novaMae, p.safra !== undefined ? p.safra : a.safra);
       ['sexo', 'safra', 'classe', 'razaoPai', 'razaoMae', 'status'].forEach(function (c) { if (p[c] !== undefined) a[c] = p[c]; });
       a.pai = novoPai || ''; a.mae = novaMae || '';
       break;
@@ -144,6 +152,8 @@ function aplicar(s, ev) {
       if (an.status === 'Referência') erro('Este animal está apenas como referência genealógica (não está no plantel).');
       if (INATIVOS.indexOf(an.status) >= 0) erro('Animal com status "' + an.status + '" não pode receber novas atividades.');
       var origem = an.viveiro, destino = '';
+      // conflito offline: outra pessoa já mudou o animal de viveiro depois que este lançamento foi feito
+      if (p.mudou && p.origemEsperada !== undefined && p.origemEsperada !== an.viveiro) erro('Outra pessoa já mudou este animal para o viveiro ' + ((s.viveiros[an.viveiro] || {}).codigo || '—') + '. Confira antes de lançar de novo.');
       if (p.mudou) { viveiroDestinoOk(s, origem, p.destino); destino = p.destino; }
       var d = p.dados || {}, resumo = '', tipo = p.sub;
       if (tipo === 'Biometria') {
@@ -253,7 +263,7 @@ var ABAS = {
   Movimentacoes: ['id', 'animal_id', 'chip', 'data', 'origem_id', 'destino_id', 'viveiro_origem', 'viveiro_destino', 'motivo', 'responsavel'],
   Eventos: ['uid', 'registrado_em', 'recebido_em', 'usuario', 'tipo', 'resultado', 'json'],
   Sugestoes: ['id', 'data', 'usuario', 'tipo', 'tela', 'texto', 'status', 'resposta'],
-  Usuarios: ['nome', 'pin', 'perfil']
+  Usuarios: ['nome', 'pin_hash', 'perfil', 'ativo', 'criado_em']
 };
 
 function setup() {
@@ -336,7 +346,64 @@ function checarChave(k) {
   if (chave && k !== chave) throw new Error('Chave do sistema incorreta.');
 }
 
-function usuarios() { return linhas('Usuarios'); }
+function usuarios() { return linhas('Usuarios').filter(function (u) { return u.nome && u.ativo !== 'Não'; }); }
+
+// ----- PIN protegido: guardado só como hash (SHA-256 com sal secreto), nunca em texto -----
+function sal() {
+  var pr = PropertiesService.getScriptProperties(), x = pr.getProperty('SAL');
+  if (!x) { x = Utilities.getUuid(); pr.setProperty('SAL', x); }
+  return x;
+}
+function hashPin(nome, pin) {
+  var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sal() + '|' + String(nome).trim().toLowerCase() + '|' + String(pin));
+  return Utilities.base64Encode(b);
+}
+// ----- bloqueio: 5 PINs errados seguidos bloqueiam a pessoa por 15 minutos -----
+function autenticar(body) {
+  var us = usuarios();
+  if (!us.length) return { nome: body.user || 'Administrador', perfil: 'Administrador', inicial: true }; // primeiro acesso: quem entra vira administrador
+  var cache = CacheService.getScriptCache(), k = 'falhas_' + String(body.user || '').toLowerCase(), n = parseInt(cache.get(k) || '0', 10);
+  if (n >= 5) throw new Error('Muitas tentativas com PIN errado. Aguarde 15 minutos.');
+  var u = us.filter(function (x) { return x.nome.toLowerCase() === String(body.user || '').toLowerCase(); })[0];
+  if (!u || u.pin_hash !== hashPin(u.nome, body.pin)) { cache.put(k, String(n + 1), 900); throw new Error('Usuário ou PIN inválido.'); }
+  cache.remove(k);
+  return { nome: u.nome, perfil: u.perfil || 'Técnico' };
+}
+function salvarUsuario(d, quem) {
+  if (!d.nome) throw new Error('Informe o nome.');
+  var sh = planilha().getSheetByName('Usuarios'), todos = linhas('Usuarios');
+  var i = -1; todos.forEach(function (u, j) { if (u.nome.toLowerCase() === String(d.nome).trim().toLowerCase()) i = j; });
+  var atual = i >= 0 ? todos[i] : null;
+  if (!atual && !/^\d{4,8}$/.test(String(d.pin || ''))) throw new Error('O PIN precisa ter de 4 a 8 números.');
+  if (d.pin && !/^\d{4,8}$/.test(String(d.pin))) throw new Error('O PIN precisa ter de 4 a 8 números.');
+  var linha = [String(d.nome).trim(), d.pin ? hashPin(String(d.nome).trim(), d.pin) : atual.pin_hash, d.perfil || (atual && atual.perfil) || 'Técnico', d.ativo === false ? 'Não' : 'Sim', atual ? atual.criado_em : new Date().toISOString()];
+  if (i >= 0) sh.getRange(i + 2, 1, 1, linha.length).setNumberFormat('@').setValues([linha]);
+  else anexar('Usuarios', [linha]);
+  anexar('Eventos', [[Utilities.getUuid(), new Date().toISOString(), new Date().toISOString(), quem, 'usuario', 'ok', JSON.stringify({ nome: linha[0], perfil: linha[2], ativo: linha[3], pinAlterado: !!d.pin })]]);
+}
+function listaUsuarios() { return linhas('Usuarios').map(function (u) { return { nome: u.nome, perfil: u.perfil, ativo: u.ativo !== 'Não' }; }); }
+
+// ----- manutenção diária: pasta do projeto e backup (30 últimos dias) -----
+function manutencaoDiaria() {
+  var pr = PropertiesService.getScriptProperties(), hoje = Utilities.formatDate(new Date(), 'America/Cuiaba', 'yyyy-MM-dd');
+  if (pr.getProperty('ULTIMA_MANUTENCAO') === hoje) return;
+  var ss = planilha(), arq = DriveApp.getFileById(ss.getId());
+  var pasta = pr.getProperty('PASTA_ID') ? DriveApp.getFolderById(pr.getProperty('PASTA_ID')) : null;
+  if (!pasta) {
+    var it = DriveApp.getRootFolder().getFoldersByName('Linhagem');
+    pasta = it.hasNext() ? it.next() : DriveApp.getRootFolder().createFolder('Linhagem');
+    pr.setProperty('PASTA_ID', pasta.getId());
+    arq.moveTo(pasta);
+    try { DriveApp.getFileById(ScriptApp.getScriptId()).moveTo(pasta); } catch (e) {}
+  }
+  var itB = pasta.getFoldersByName('Backups'), backups = itB.hasNext() ? itB.next() : pasta.createFolder('Backups');
+  arq.makeCopy('Linhagem — backup ' + hoje, backups);
+  var lista = [], fs = backups.getFiles();
+  while (fs.hasNext()) lista.push(fs.next());
+  lista.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
+  lista.slice(30).forEach(function (f) { f.setTrashed(true); });
+  pr.setProperty('ULTIMA_MANUTENCAO', hoje);
+}
 
 function foto(s) {
   delete s.usados;
@@ -354,13 +421,16 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     checarChave(body.chave);
-    var us = usuarios();
-    if (us.length) {
-      var u = us.filter(function (x) { return x.nome === body.user && String(x.pin) === String(body.pin); })[0];
-      if (!u) throw new Error('Usuário ou PIN inválido.');
-      if (u.perfil === 'Consulta' && (body.eventos || []).length) throw new Error('Perfil de consulta não pode lançar dados.');
+    var u = autenticar(body);
+    try { manutencaoDiaria(); } catch (e) {} // backup não pode impedir o lançamento
+    if (u.perfil === 'Consulta' && (body.eventos || []).length) throw new Error('Perfil de consulta não pode lançar dados.');
+    if (body.acao === 'usuarios' || body.acao === 'usuario') {
+      if (u.perfil !== 'Administrador') throw new Error('Só o administrador cadastra pessoas e PINs.');
+      if (body.acao === 'usuario') salvarUsuario(body.dados || {}, u.nome);
+      return resposta({ ok: true, usuarios: listaUsuarios() });
     }
-    if (body.login) return resposta({ ok: true });
+    if (body.login) return resposta({ ok: true, perfil: u.perfil, inicial: !!u.inicial });
+    body.user = u.nome;
     var s = carregar(), nA = s.atividades.length, nM = s.movs.length, res = [], log = [], agora = new Date().toISOString();
     (body.eventos || []).forEach(function (ev) {
       ev.user = body.user || ev.user || '';

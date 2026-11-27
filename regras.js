@@ -46,18 +46,26 @@ function ehAncestral(s, anc, id) {
 
 function erro(msg) { throw new Error(msg); }
 
-function validarPais(s, id, pai, mae) {
+function anoSafra(x) { var m = String(x == null ? '' : x).match(/(19|20)\d{2}/); return m ? parseInt(m[0], 10) : null; }
+// pai e mãe precisam ser de safra anterior à do filho (quando as duas safras são conhecidas)
+function checarSafra(pai, safraFilho, papel) {
+  var a = anoSafra(pai.safra), b = anoSafra(safraFilho);
+  if (a && b && a >= b) erro((papel === 'pai' ? 'O pai' : 'A mãe') + ' (' + pai.chip + ') é da safra ' + pai.safra + ', igual ou posterior à safra do filho (' + safraFilho + ').');
+}
+function validarPais(s, id, pai, mae, safraFilho) {
   if (pai) {
     var p = s.animais[pai];
     if (!p) erro('Pai não encontrado.');
     if (p.sexo !== 'M') erro('O pai (' + p.chip + ') não está cadastrado como Macho.');
     if (id && ehAncestral(s, id, pai)) erro('Ciclo na genealogia: o animal não pode ser ancestral do próprio pai.');
+    checarSafra(p, safraFilho, 'pai');
   }
   if (mae) {
     var m = s.animais[mae];
     if (!m) erro('Mãe não encontrada.');
     if (m.sexo !== 'F') erro('A mãe (' + m.chip + ') não está cadastrada como Fêmea.');
     if (id && ehAncestral(s, id, mae)) erro('Ciclo na genealogia: o animal não pode ser ancestral da própria mãe.');
+    checarSafra(m, safraFilho, 'mãe');
   }
 }
 
@@ -113,7 +121,7 @@ function aplicar(s, ev) {
       if (dono) erro('O chip ' + chip + ' já está ativo em outro animal.');
       if (s.animais[p.id]) erro('Animal já cadastrado.');
       if (p.viveiro && !s.viveiros[p.viveiro]) erro('Viveiro não encontrado.');
-      validarPais(s, null, p.pai, p.mae);
+      validarPais(s, null, p.pai, p.mae, p.safra);
       s.animais[p.id] = {
         id: p.id, chip: chip, chipsAnt: [], sexo: p.sexo || 'I', safra: p.safra || '', pai: p.pai || '', mae: p.mae || '',
         viveiro: '', status: p.status || 'Ativo', classe: p.classe || '', razaoPai: p.razaoPai || '', razaoMae: p.razaoMae || '',
@@ -133,7 +141,7 @@ function aplicar(s, ev) {
           if ((fi.pai === a.id && p.sexo !== 'M') || (fi.mae === a.id && p.sexo !== 'F')) erro('Não dá para mudar o sexo: o animal já é pai/mãe registrado de outros animais.');
         }
       }
-      validarPais(s, a.id, novoPai, novaMae);
+      validarPais(s, a.id, novoPai, novaMae, p.safra !== undefined ? p.safra : a.safra);
       ['sexo', 'safra', 'classe', 'razaoPai', 'razaoMae', 'status'].forEach(function (c) { if (p[c] !== undefined) a[c] = p[c]; });
       a.pai = novoPai || ''; a.mae = novaMae || '';
       break;
@@ -144,6 +152,8 @@ function aplicar(s, ev) {
       if (an.status === 'Referência') erro('Este animal está apenas como referência genealógica (não está no plantel).');
       if (INATIVOS.indexOf(an.status) >= 0) erro('Animal com status "' + an.status + '" não pode receber novas atividades.');
       var origem = an.viveiro, destino = '';
+      // conflito offline: outra pessoa já mudou o animal de viveiro depois que este lançamento foi feito
+      if (p.mudou && p.origemEsperada !== undefined && p.origemEsperada !== an.viveiro) erro('Outra pessoa já mudou este animal para o viveiro ' + ((s.viveiros[an.viveiro] || {}).codigo || '—') + '. Confira antes de lançar de novo.');
       if (p.mudou) { viveiroDestinoOk(s, origem, p.destino); destino = p.destino; }
       var d = p.dados || {}, resumo = '', tipo = p.sub;
       if (tipo === 'Biometria') {
