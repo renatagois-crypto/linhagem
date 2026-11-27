@@ -297,7 +297,7 @@ var ABAS = {
   Movimentacoes: ['id', 'animal_id', 'chip', 'data', 'origem_id', 'destino_id', 'viveiro_origem', 'viveiro_destino', 'motivo', 'responsavel'],
   Eventos: ['uid', 'registrado_em', 'recebido_em', 'usuario', 'tipo', 'resultado', 'json'],
   Sugestoes: ['id', 'data', 'usuario', 'tipo', 'tela', 'texto', 'status', 'resposta'],
-  Usuarios: ['nome', 'pin_hash', 'perfil', 'ativo', 'criado_em']
+  Usuarios: ['nome', 'pin_hash', 'perfil', 'ativo', 'criado_em', 'email', 'pin_provisorio']
 };
 
 function setup() {
@@ -450,16 +450,18 @@ function autenticar(body) {
     var pr = PropertiesService.getScriptProperties(), sess = pr.getProperty('TOK_' + hashPin('tok', body.token));
     var d = sess ? JSON.parse(sess) : null;
     var ut = d && d.exp > Date.now() ? us.filter(function (x) { return x.nome.toLowerCase() === d.nome.toLowerCase(); })[0] : null;
+    if (ut) return { nome: ut.nome, perfil: ut.perfil || 'Técnico', email: ut.email || '' };
     if (!ut) throw new Error('Sessão encerrada. Entre de novo com seu PIN.');
     return { nome: ut.nome, perfil: ut.perfil || 'Técnico' };
   }
   if (!us.length) return { nome: body.user || 'Administrador', perfil: 'Administrador', inicial: true }; // primeiro acesso: quem entra vira administrador
   var cache = CacheService.getScriptCache(), k = 'falhas_' + String(body.user || '').toLowerCase(), n = parseInt(cache.get(k) || '0', 10);
   if (n >= 5) throw new Error('Muitas tentativas com PIN errado. Aguarde 15 minutos.');
-  var u = us.filter(function (x) { return x.nome.toLowerCase() === String(body.user || '').toLowerCase(); })[0];
+  var quem = String(body.user || '').trim().toLowerCase(); // entra pelo nome ou pelo e-mail
+  var u = us.filter(function (x) { return x.nome.toLowerCase() === quem || (x.email && x.email.toLowerCase() === quem); })[0];
   if (!u || u.pin_hash !== hashPin(u.nome, body.pin)) { cache.put(k, String(n + 1), 900); throw new Error('Usuário ou PIN inválido.'); }
   cache.remove(k);
-  return { nome: u.nome, perfil: u.perfil || 'Técnico' };
+  return { nome: u.nome, perfil: u.perfil || 'Técnico', email: u.email || '', trocarPin: u.pin_provisorio === 'Sim' };
 }
 function salvarUsuario(d, quem) {
   if (!d.nome) throw new Error('Informe o nome.');
@@ -468,12 +470,39 @@ function salvarUsuario(d, quem) {
   var atual = i >= 0 ? todos[i] : null;
   if (!atual && !/^\d{4,8}$/.test(String(d.pin || ''))) throw new Error('O PIN precisa ter de 4 a 8 números.');
   if (d.pin && !/^\d{4,8}$/.test(String(d.pin))) throw new Error('O PIN precisa ter de 4 a 8 números.');
-  var linha = [String(d.nome).trim(), d.pin ? hashPin(String(d.nome).trim(), d.pin) : atual.pin_hash, d.perfil || (atual && atual.perfil) || 'Técnico', d.ativo === false ? 'Não' : 'Sim', atual ? atual.criado_em : new Date().toISOString()];
+  var email = String(d.email !== undefined ? d.email : (atual && atual.email) || '').trim().toLowerCase();
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('E-mail inválido.');
+  if (email && todos.some(function (u, j) { return j !== i && u.email && u.email.toLowerCase() === email; })) throw new Error('Esse e-mail já está em outra pessoa.');
+  var linha = [String(d.nome).trim(), d.pin ? hashPin(String(d.nome).trim(), d.pin) : atual.pin_hash, d.perfil || (atual && atual.perfil) || 'Técnico', d.ativo === false ? 'Não' : 'Sim', atual ? atual.criado_em : new Date().toISOString(), email,
+    // PIN definido pelo administrador para outra pessoa é provisório: ela troca no primeiro acesso
+    d.pin ? (String(d.nome).trim().toLowerCase() === String(quem).toLowerCase() ? 'Não' : 'Sim') : ((atual && atual.pin_provisorio) || 'Não')];
   if (i >= 0) sh.getRange(i + 2, 1, 1, linha.length).setNumberFormat('@').setValues([linha]);
   else anexar('Usuarios', [linha]);
-  anexar('Eventos', [[Utilities.getUuid(), new Date().toISOString(), new Date().toISOString(), quem, 'usuario', 'ok', JSON.stringify({ nome: linha[0], perfil: linha[2], ativo: linha[3], pinAlterado: !!d.pin })]]);
+  var compartilhado = '';
+  if (email && d.acessoPlanilha) compartilhado = compartilharPlanilha(email, d.acessoPlanilha);
+  anexar('Eventos', [[Utilities.getUuid(), new Date().toISOString(), new Date().toISOString(), quem, 'usuario', 'ok', JSON.stringify({ nome: linha[0], email: email, perfil: linha[2], ativo: linha[3], pinAlterado: !!d.pin, planilha: compartilhado })]]);
+  return compartilhado;
 }
-function listaUsuarios() { return linhas('Usuarios').map(function (u) { return { nome: u.nome, perfil: u.perfil, ativo: u.ativo !== 'Não' }; }); }
+// dá acesso à pasta Linhagem (planilha + backups) no Google Drive para o e-mail informado
+function compartilharPlanilha(email, nivel) {
+  var pr = PropertiesService.getScriptProperties(), alvo;
+  try { manutencaoDiaria(); } catch (e) {}
+  alvo = pr.getProperty('PASTA_ID') ? DriveApp.getFolderById(pr.getProperty('PASTA_ID')) : DriveApp.getFileById(planilha().getId());
+  if (nivel === 'editar') alvo.addEditor(email); else alvo.addViewer(email);
+  return nivel;
+}
+function trocarMeuPin(u, d) {
+  if (!/^\d{4,8}$/.test(String(d.pinNovo || ''))) throw new Error('O PIN novo precisa ter de 4 a 8 números.');
+  var todos = linhas('Usuarios'), i = -1;
+  todos.forEach(function (x, j) { if (x.nome === u.nome) i = j; });
+  if (i < 0) throw new Error('Pessoa não encontrada.');
+  if (todos[i].pin_hash !== hashPin(u.nome, d.pinAtual)) throw new Error('PIN atual incorreto.');
+  if (d.pinNovo === d.pinAtual) throw new Error('O PIN novo precisa ser diferente do atual.');
+  var sh = planilha().getSheetByName('Usuarios');
+  sh.getRange(i + 2, 2).setValue(hashPin(u.nome, d.pinNovo));
+  sh.getRange(i + 2, ABAS.Usuarios.indexOf('pin_provisorio') + 1).setValue('Não');
+}
+function listaUsuarios() { return linhas('Usuarios').map(function (u) { return { nome: u.nome, email: u.email || '', perfil: u.perfil, ativo: u.ativo !== 'Não' }; }); }
 
 // ----- manutenção diária: pasta do projeto e backup (30 últimos dias) -----
 function manutencaoDiaria() {
@@ -516,13 +545,14 @@ function doPost(e) {
     var u = autenticar(body);
     try { manutencaoDiaria(); } catch (e) {} // backup não pode impedir o lançamento
     if (u.perfil === 'Consulta' && (body.eventos || []).length) throw new Error('Perfil de consulta não pode lançar dados.');
+    if (body.acao === 'meuPin') { trocarMeuPin(u, body.dados || {}); return resposta({ ok: true }); }
     if (body.acao === 'usuarios' || body.acao === 'usuario') {
       if (u.perfil !== 'Administrador') throw new Error('Só o administrador cadastra pessoas e PINs.');
-      if (body.acao === 'usuario') salvarUsuario(body.dados || {}, u.nome);
-      return resposta({ ok: true, usuarios: listaUsuarios() });
+      var comp = body.acao === 'usuario' ? salvarUsuario(body.dados || {}, u.nome) : '';
+      return resposta({ ok: true, usuarios: listaUsuarios(), compartilhado: comp, planilhaUrl: planilha().getUrl() });
     }
     if (body.sair && body.token) { PropertiesService.getScriptProperties().deleteProperty('TOK_' + hashPin('tok', body.token)); return resposta({ ok: true }); }
-    if (body.login) return resposta({ ok: true, perfil: u.perfil, inicial: !!u.inicial, token: u.inicial ? '' : novoToken(u) });
+    if (body.login) return resposta({ ok: true, nome: u.nome, perfil: u.perfil, inicial: !!u.inicial, trocarPin: !!u.trocarPin, token: u.inicial ? '' : novoToken(u) });
     body.user = u.nome;
     var s = carregar(), nA = s.atividades.length, nM = s.movs.length, res = [], log = [], agora = new Date().toISOString();
     (body.eventos || []).forEach(function (ev) {

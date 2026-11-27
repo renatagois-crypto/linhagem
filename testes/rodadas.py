@@ -26,6 +26,7 @@ async def importar(pg, tipo, arq):
     await pg.evaluate("ir('importar')")
     await pg.click(f'button.chip:has-text("{tipo}")')
     await pg.set_input_files('#arq', arq); await pg.wait_for_timeout(700)
+    await pg.click('#prev button:has-text("Conferir os dados")'); await pg.wait_for_timeout(300)
     prev = await pg.inner_text('#prev')
     btn = pg.locator('#prev button.acc')
     if await btn.count() and await btn.is_enabled():
@@ -99,6 +100,18 @@ async def main():
         prev2 = await importar(pg, 'Plantel', 'plantel.xlsx')
         ok('R2', 'já cadastrados' in prev2, 'reimportar a mesma planilha não duplica')
 
+        # planilha no formato próprio (título, duas abas, nomes diferentes)
+        await pg.evaluate("ir('importar')"); await pg.click('button.chip:has-text("Plantel")')
+        await pg.set_input_files('#arq', 'plantel_tiago.xlsx'); await pg.wait_for_timeout(700)
+        mp = await pg.inner_text('#prev')
+        ok('R2', 'Plantel 2026' in await pg.evaluate("impArq.aba") and 'linha 3' in mp, 'acha sozinho a aba e a linha do cabeçalho')
+        m = await pg.evaluate("Object.fromEntries(Object.entries(impArq.mapa).map(([k,i])=>[k,i>=0?impArq.cab[i]:'']))")
+        ok('R2', m['PRODUTO']=='PIT TAG' and m['PAI']=='Reprodutor' and m['MAE']=='Matriz' and m['SAFRA']=='Ano' and m['TANQUEATUAL']=='Viveiro', f'colunas com nomes diferentes reconhecidas: {m}')
+        await pg.click('#prev button:has-text("Conferir os dados")'); await pg.wait_for_timeout(300)
+        await pg.click('#prev button.acc'); await pg.wait_for_timeout(300)
+        f3 = await S(pg, "(()=>{const a=Object.values(S.animais).find(a=>a.chip==='982000400000003');return a&&S.animais[a.pai]&&S.animais[a.pai].chip})()")
+        ok('R2', f3 == '982000400000001', 'planilha no formato próprio importada com a genealogia')
+
         # ---------- R3 outras importações ----------
         print('R3 — importação de biometrias, sêmen, viveiros, manejos')
         prev = await importar(pg, 'Biometrias', 'bio.xlsx')
@@ -144,14 +157,14 @@ async def main():
 
         # ---------- R5 coleta de sêmen ----------
         print('R5 — coleta de sêmen')
-        t = await lancar(pg, 'Coleta de sêmen', '00002', {'sDoses': '10', 'sCan': '#1'})
+        t = await lancar(pg, 'Coleta de sêmen', '200000002', {'sDoses': '10', 'sCan': '#1'})
         ok('R5', 'Macho' in t, 'coleta em fêmea é barrada: ' + t)
         t = await lancar(pg, 'Coleta de sêmen', '00005', {'sDoses': '10', 'sCan': '#0'})
         ok('R5', 'caneca' in t.lower(), 'sem caneca escolhida é barrada: ' + t)
         t = await lancar(pg, 'Coleta de sêmen', '00005', {'sDoses': '12', 'sMot': '80', 'sCan': '#1'})
         sx = await S(pg, "Object.values(S.animais).find(a=>a.chip==='982000200000005').sexo")
         ok('R5', 'salva' in t and sx == 'M', f'indefinido vira Macho ao confirmar coleta ({sx}): {t}')
-        t = await lancar(pg, 'Coleta de sêmen', '00001', {'sDoses': '0', 'sCan': '#1'})
+        t = await lancar(pg, 'Coleta de sêmen', '200000001', {'sDoses': '0', 'sCan': '#1'})
         ok('R5', 'doses' in t.lower(), 'zero doses é barrado: ' + t)
 
         # ---------- R6 ovócitos ----------
@@ -164,7 +177,7 @@ async def main():
         t = await lancar(pg, 'Coleta de ovócitos', '00004', {'oPeso': '350', 'oLote': '#1', 'oDoses': '2'})
         d = await S(pg, f"S.lotes['{lote}'].disp")
         ok('R6', d in (10, 12) and 'salva' in t, f'doses baixadas do lote certo (disp={d}): {t}')
-        t = await lancar(pg, 'Coleta de ovócitos', '00001', {'oPeso': '100'})
+        t = await lancar(pg, 'Coleta de ovócitos', '200000001', {'oPeso': '100'})
         ok('R6', 'Fêmea' in t, 'ovócitos em macho é barrado: ' + t)
 
         # ---------- R7 baixa e bloqueio ----------
@@ -269,6 +282,15 @@ async def main():
         r = await pg2.evaluate("chamar({chave:'segredo',user:'Tiago',pin:'1234',login:true})")
         ok('R10', not r['ok'] and 'tentativas' in r['erro'], 'depois de 5 PINs errados a pessoa fica bloqueada')
         ok('R10', len(json.loads(mock('__backups'))) >= 1, 'backup diário criado')
+        # e-mail + PIN provisório (libera o bloqueio do teste anterior)
+        mock('__limpacache')
+        r = await pg2.evaluate("chamar({chave:'segredo',user:'Tiago',pin:'1234',acao:'usuario',dados:{nome:'Prof Tiago',email:'tiago@gmail.com',pin:'2222',perfil:'Administrador',ativo:true}})")
+        ok('R10', r['ok'], 'administrador cadastra pessoa com e-mail ' + str(r.get('erro','')))
+        r = await pg2.evaluate("chamar({chave:'segredo',user:'tiago@gmail.com',pin:'2222',login:true})")
+        ok('R10', r['ok'] and r['nome']=='Prof Tiago' and r['trocarPin'], 'entra pelo e-mail e o PIN provisório pede troca')
+        r2 = await pg2.evaluate(f"chamar({{chave:'segredo',user:'Prof Tiago',token:'{r['token']}',acao:'meuPin',dados:{{pinAtual:'2222',pinNovo:'5678'}}}})")
+        r3 = await pg2.evaluate("chamar({chave:'segredo',user:'tiago@gmail.com',pin:'5678',login:true})")
+        ok('R10', r2['ok'] and r3['ok'] and not r3['trocarPin'], 'troca do PIN provisório funciona e não pede de novo')
         # sessão por token: o celular não guarda o PIN
         await asyncio.sleep(0)
         r = await pg2.evaluate("chamar({chave:'segredo',user:'Leitor',pin:'0000',login:true})")

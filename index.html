@@ -234,15 +234,16 @@ const ICON = {
 };
 function renderNav() {
   const it = [['inicio', 'Início'], ['lancar', 'Lançar'], ['animais', 'Animais'], ['semen', 'Sêmen'], ['mais', 'Mais']];
-  const grupo = { ficha: 'animais', viveiros: 'mais', canecas: 'mais', importar: 'mais', pedigree: 'mais', config: 'mais', pendencias: 'mais', painel: 'mais', editar: 'animais', sugestoes: 'mais', usuarios: 'mais', sair: 'mais', cruzamento: 'mais' };
+  const grupo = { ficha: 'animais', viveiros: 'mais', canecas: 'mais', importar: 'mais', pedigree: 'mais', config: 'mais', pendencias: 'mais', painel: 'mais', editar: 'animais', sugestoes: 'mais', usuarios: 'mais', sair: 'mais', cruzamento: 'mais', meupin: 'mais' };
   const at = grupo[tela] || tela;
   $('nav').innerHTML = it.map(([k, l]) => `<button class="${at === k ? 'on' : ''}" onclick="ir('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>${l}</button>`).join('');
 }
 function render() {
   $('hNome').textContent = cfg.nome || 'Linhagem';
   if (!user) { telaLogin(); $('nav').innerHTML = ''; atualizarSync(); return; }
+  if (user.trocarPin && tela !== 'meupin') tela = 'meupin';
   renderNav(); atualizarSync();
-  const f = { inicio: telaInicio, lancar: telaLancar, animais: telaAnimais, ficha: telaFicha, semen: telaSemen, mais: telaMais, viveiros: telaViveiros, canecas: telaCanecas, importar: telaImportar, pedigree: telaPedigree, config: telaConfig, pendencias: telaPendencias, painel: telaPainel, editar: telaEditar, sugestoes: telaSugestoes, usuarios: telaUsuarios, sair: telaSair, cruzamento: telaCruzamento }[tela];
+  const f = { inicio: telaInicio, lancar: telaLancar, animais: telaAnimais, ficha: telaFicha, semen: telaSemen, mais: telaMais, viveiros: telaViveiros, canecas: telaCanecas, importar: telaImportar, pedigree: telaPedigree, config: telaConfig, pendencias: telaPendencias, painel: telaPainel, editar: telaEditar, sugestoes: telaSugestoes, usuarios: telaUsuarios, sair: telaSair, cruzamento: telaCruzamento, meupin: telaMeuPin }[tela];
   f(telaArg);
 }
 
@@ -253,7 +254,7 @@ function telaLogin() {
     <div class="card" style="margin-top:20px">
     <h2>Entrar</h2>
     <p class="mut">Informe seu nome e PIN. Cada lançamento fica registrado com o nome de quem fez.</p>
-    <label>Nome</label>${nomes.length ? `<select id="lgNome">${nomes.map(u => `<option>${esc(u.nome)}</option>`).join('')}</select>` : `<input id="lgNome" placeholder="Seu nome">`}
+    <label>E-mail ou nome</label>${nomes.length && false ? `<select id="lgNome">${nomes.map(u => `<option>${esc(u.nome)}</option>`).join('')}</select>` : `<input id="lgNome" type="text" autocomplete="username" autocapitalize="off" placeholder="seu e-mail ou nome">`}
     <label>PIN</label><input id="lgPin" type="password" inputmode="numeric" placeholder="PIN">
     <div style="height:14px"></div>
     <button class="btn w" onclick="entrar()">Entrar</button>
@@ -261,15 +262,15 @@ function telaLogin() {
   </div>`;
 }
 async function entrar() {
-  const nome = $('lgNome').value.trim(), pin = $('lgPin').value.trim(); let perfil = '', inicial = false, token = '';
+  const nome = $('lgNome').value.trim(), pin = $('lgPin').value.trim(); let perfil = '', inicial = false, token = '', nomeSrv = '', trocar = false;
   if (!nome) return toast('Informe seu nome.', 'err');
   if (cfg.url && navigator.onLine) {
-    try { const r = await chamar({ chave: cfg.chave, user: nome, pin, login: true }); if (!r.ok) return toast(r.erro, 'err'); perfil = r.perfil; inicial = r.inicial; token = r.token; }
+    try { const r = await chamar({ chave: cfg.chave, user: nome, pin, login: true }); if (!r.ok) return toast(r.erro, 'err'); perfil = r.perfil; inicial = r.inicial; token = r.token; nomeSrv = r.nome; trocar = r.trocarPin; }
     catch (e) { return toast('Não consegui falar com o servidor: ' + e.message, 'err'); }
   }
   // com servidor: o celular guarda só um token de sessão (30 dias), nunca o PIN
-  user = token ? { nome, token, perfil } : { nome, pin: cfg.url ? pin : '', perfil: perfil || 'Administrador' }; LS.set('user', user);
-  if (inicial) { toast('Primeiro acesso: cadastre você e a equipe com PIN.', 'ok'); ir('usuarios'); } else ir('inicio');
+  user = token ? { nome: nomeSrv || nome, token, perfil, trocarPin: !!trocar } : { nome, pin: cfg.url ? pin : '', perfil: perfil || 'Administrador' }; LS.set('user', user);
+  if (inicial) { toast('Primeiro acesso: cadastre você e a equipe com PIN.', 'ok'); ir('usuarios'); } else if (user.trocarPin) ir('meupin'); else ir('inicio');
   sincronizar();
 }
 function formServidor() {
@@ -592,7 +593,7 @@ function acaoLote(id) {
 // ===================== Mais =====================
 function telaMais() {
 
-  const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)'], ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['cruzamento', 'Simular cruzamento', 'Parentesco entre macho e fêmea e endogamia esperada do filho'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ...(user.perfil === 'Administrador' ? [['usuarios', 'Pessoas e PINs', 'Quem pode entrar no sistema e com qual perfil']] : []), ['pendencias', 'Pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)'], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
+  const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)'], ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['cruzamento', 'Simular cruzamento', 'Parentesco entre macho e fêmea e endogamia esperada do filho'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ...(user.perfil === 'Administrador' ? [['usuarios', 'Pessoas e PINs', 'Quem pode entrar no sistema, com qual perfil, e acesso à planilha']] : []), ...(user.token ? [['meupin', 'Trocar meu PIN', 'Precisa de internet']] : []), ['pendencias', 'Pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)'], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
   $('main').innerHTML = `<h2>Mais</h2><div class="card" style="padding:4px 12px">${it.map(([k, t, s]) => `<div class="item" onclick="${k === 'excel' ? 'exportarExcel()' : `ir('${k}')`}"><div class="m"><b>${t}</b><div class="s">${s}</div></div><span>›</span></div>`).join('')}</div>
     <p class="mut">Usuário: <b>${esc(user.nome)}</b> · <a class="lk" onclick="ir('sair')">Sair</a></p>`;
 }
@@ -663,7 +664,7 @@ function telaImportar(tipo) {
   $('main').innerHTML = `<h2>Importar dados</h2>
     <div class="card"><label style="margin-top:0">O que você vai importar?</label>
     <div class="chips">${Object.keys(IMPORTS).map(k => `<button class="chip ${impTipo === k ? 'on' : ''}" onclick="telaImportar('${k}')">${IMPORTS[k].nome}</button>`).join('')}</div>
-    <div class="alert" style="margin-top:12px"><b>Colunas reconhecidas:</b> ${IMPORTS[impTipo].cols}.<br>A ordem não importa; maiúsculas e acentos também não. Chips são lidos como texto.</div>
+    <div class="alert" style="margin-top:12px">Pode usar a planilha do jeito que vocês já têm. Depois de escolher o arquivo, o sistema mostra quais colunas reconheceu e você confere ou ajusta antes de importar. Chips são lidos sempre como texto.</div>
     ${impTipo !== 'animais' && impTipo !== 'viveiros' && impTipo !== 'canecas' ? '<p class="mut">Importe o plantel antes: os chips desta planilha precisam já estar cadastrados.</p>' : ''}
     <button class="btn sec w" style="margin-top:8px" onclick="baixarModelo()">Baixar modelo de planilha (${IMPORTS[impTipo].nome})</button>
     <label class="btn acc w" style="color:#fff;margin-top:8px">Escolher arquivo (.xlsx ou .csv)<input type="file" id="arq" accept=".xlsx,.xls,.csv" class="hide" onchange="lerPlanilha(this.files[0])"></label></div>
@@ -700,6 +701,28 @@ function dataISO(x) {
   return '';
 }
 function porChip(c) { c = normChip(c); return Object.values(S.animais).find(a => a.chip === c && ativo(a)) || Object.values(S.animais).find(a => a.chip === c || a.chipsAnt.includes(c)); }
+// Campos que o sistema entende, com os nomes de coluna mais comuns (sem acento, maiúsculas, sem espaços)
+const CAMPOS = {
+  animais: [['PRODUTO', 'Chip do animal', 1, ['PRODUTO', 'CHIP', 'CODIGOCHIP', 'MICROCHIP', 'PIT', 'PITTAG', 'TAG', 'TRANSPONDER', 'IDENTIFICACAO', 'ID', 'ANIMAL', 'NUMERO']],
+    ['SAFRA', 'Safra / ano', 0, ['SAFRA', 'ANO', 'ANONASCIMENTO', 'GERACAO', 'COORTE', 'LOTE']], ['SEXO', 'Sexo', 0, ['SEXO', 'SEX']],
+    ['PAI', 'Chip do pai', 0, ['PAI', 'IDPAI', 'CHIPPAI', 'REPRODUTOR', 'MACHO', 'SIRE']], ['MAE', 'Chip da mãe', 0, ['MAE', 'IDMAE', 'CHIPMAE', 'MATRIZ', 'FEMEA', 'DAM']],
+    ['TANQUEATUAL', 'Viveiro / tanque atual', 0, ['TANQUEATUAL', 'TANQUE', 'VIVEIRO', 'VIVEIROATUAL', 'LOCAL', 'UNIDADE']],
+    ['RAZAOPAI', 'Razão pai', 0, ['RAZAOPAI']], ['RAZAOMAE', 'Razão mãe', 0, ['RAZAOMAE']], ['CLASSEPRIORIDADE', 'Classe de prioridade', 0, ['CLASSEPRIORIDADE', 'CLASSE', 'PRIORIDADE']]],
+  viveiros: [['CODIGO', 'Código do viveiro', 1, ['CODIGO', 'VIVEIRO', 'TANQUE', 'ID']], ['NOME', 'Nome', 0, ['NOME', 'DESCRICAO']], ['TIPO', 'Tipo', 0, ['TIPO']],
+    ['CAPACIDADE', 'Capacidade (animais)', 0, ['CAPACIDADE', 'CAPACIDADEANIMAIS', 'LOTACAO']], ['CAPACIDADEKG', 'Capacidade (kg)', 0, ['CAPACIDADEKG', 'BIOMASSA']], ['STATUS', 'Situação', 0, ['STATUS', 'SITUACAO']]],
+  canecas: [['BOTIJAO', 'Botijão', 1, ['BOTIJAO', 'BOTIJAODENITROGENIO', 'CONTAINER']], ['CANECA', 'Caneca', 1, ['CANECA', 'RACK', 'CANISTER']], ['COR', 'Cor', 0, ['COR']], ['CAPACIDADE', 'Capacidade (doses)', 0, ['CAPACIDADE']]],
+  biometrias: [['CHIP', 'Chip do animal', 1, ['CHIP', 'PRODUTO', 'MICROCHIP', 'PIT', 'TAG', 'ID', 'ANIMAL']], ['DATA', 'Data', 1, ['DATA', 'DATABIOMETRIA', 'DIA']],
+    ['PESO', 'Peso (g)', 1, ['PESO', 'PESOG', 'PESOGRAMAS', 'PV']], ['COMPTOTAL', 'Comprimento total (cm)', 0, ['COMPTOTAL', 'CT', 'COMPRIMENTOTOTAL', 'COMPRIMENTO']],
+    ['COMPPADRAO', 'Comprimento padrão (cm)', 0, ['COMPPADRAO', 'CP', 'COMPRIMENTOPADRAO']], ['ALTURA', 'Altura (cm)', 0, ['ALTURA', 'ALT']]],
+  semen: [['CHIP', 'Chip do doador', 1, ['CHIP', 'PRODUTO', 'DOADOR', 'CHIPDOADOR', 'MACHO', 'REPRODUTOR', 'ID']], ['DATACOLETA', 'Data da coleta', 0, ['DATACOLETA', 'DATA', 'COLETA']],
+    ['BOTIJAO', 'Botijão', 1, ['BOTIJAO', 'CONTAINER']], ['CANECA', 'Caneca', 1, ['CANECA', 'RACK', 'CANISTER']], ['DOSES', 'Doses coletadas', 1, ['DOSES', 'DOSESINICIAIS', 'DOSESCOLETADAS', 'PALHETAS', 'NPALHETAS', 'QTDDOSES']],
+    ['DOSESDISPONIVEIS', 'Doses disponíveis hoje', 0, ['DOSESDISPONIVEIS', 'SALDO', 'ESTOQUE', 'DISPONIVEIS']], ['CORPALHETA', 'Cor da palheta', 0, ['CORPALHETA', 'COR']],
+    ['VOLUME', 'Volume (mL)', 0, ['VOLUME']], ['MOTILIDADE', 'Motilidade (%)', 0, ['MOTILIDADE', 'MOT']], ['VIGOR', 'Vigor', 0, ['VIGOR']], ['CONCENTRACAO', 'Concentração', 0, ['CONCENTRACAO', 'CONC']], ['DILUIDOR', 'Diluidor', 0, ['DILUIDOR', 'CRIOPROTETOR']]],
+  manejos: [['CHIP', 'Chip do animal', 1, ['CHIP', 'PRODUTO', 'MICROCHIP', 'PIT', 'TAG', 'ID', 'ANIMAL']], ['DATA', 'Data', 1, ['DATA', 'DIA']], ['MANEJO', 'Manejo', 1, ['MANEJO', 'TIPO', 'ATIVIDADE', 'EVENTO']], ['DETALHE', 'Detalhe', 0, ['DETALHE', 'OBS', 'OBSERVACOES', 'OBSERVACAO', 'DESCRICAO']]]
+};
+const txtCel = v => v instanceof Date ? v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0') + '-' + String(v.getDate()).padStart(2, '0')
+  : typeof v === 'number' ? (Number.isInteger(v) ? v.toFixed(0) : String(v)) : String(v == null ? '' : v).trim();
+let impArq = null;
 async function lerPlanilha(f) {
   if (!f) return;
   try {
@@ -709,24 +732,70 @@ async function lerPlanilha(f) {
       // CSV: lê como UTF-8; se não for (Excel no Brasil salva em ANSI), usa Windows-1252. Aceita ; ou , como separador.
       const buf = await f.arrayBuffer();
       let texto; try { texto = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { texto = new TextDecoder('windows-1252').decode(buf); }
-      texto = texto.replace(/^\uFEFF/, '');
+      texto = texto.replace(/^﻿/, '');
       const l1 = texto.split(/\r?\n/)[0] || '';
       const sep = (l1.match(/;/g) || []).length > (l1.match(/,/g) || []).length ? ';' : ',';
       wb = XLSX.read(texto, { type: 'string', FS: sep, raw: true });
     } else wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    // raw: true evita que o Excel transforme chips de 15 dígitos em "9.82E+14"
-    const rows = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' });
-    const txt = v => v instanceof Date ? v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0') + '-' + String(v.getDate()).padStart(2, '0')
-      : typeof v === 'number' ? (Number.isInteger(v) ? v.toFixed(0) : String(v)) : String(v == null ? '' : v).trim();
-    const R = rows.map(r => { const o = {}; Object.keys(r).forEach(k => o[normCol(k)] = txt(r[k])); return o; });
-    if (!R.length) throw new Error('A planilha está vazia.');
+    impArq = { wb, nome: f.name, aba: null };
+    // escolhe a aba que mais parece ter os dados (a que tem mais colunas reconhecidas)
+    let melhor = wb.SheetNames[0], pts = -1;
+    wb.SheetNames.forEach(n => { const p = pontuarAba(wb.Sheets[n]); if (p > pts) { pts = p; melhor = n; } });
+    abrirAba(melhor);
+  } catch (e) { toast(e.message, 'err'); }
+}
+function linhasAba(ws) { return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' }); }
+function pontuarAba(ws) {
+  const L = linhasAba(ws).slice(0, 15), sin = new Set(CAMPOS[impTipo].flatMap(c => c[3]));
+  return Math.max(0, ...L.map(r => r.filter(c => sin.has(normCol(c))).length));
+}
+// abre uma aba: acha a linha do cabeçalho (a que tem mais nomes conhecidos nas 15 primeiras) e sugere a ligação das colunas
+function abrirAba(nome) {
+  const L = linhasAba(impArq.wb.Sheets[nome]), sin = new Set(CAMPOS[impTipo].flatMap(c => c[3]));
+  let h = 0, best = -1;
+  L.slice(0, 15).forEach((r, i) => { const p = r.filter(c => sin.has(normCol(c))).length * 10 + r.filter(c => String(c).trim()).length / 100; if (p > best) { best = p; h = i; } });
+  const cab = (L[h] || []).map((c, i) => String(c).trim() || 'Coluna ' + (i + 1));
+  const dados = L.slice(h + 1).filter(r => r.some(c => String(c).trim() !== ''));
+  const salvo = LS.get('mapa_' + impTipo, {});
+  const mapa = {};
+  CAMPOS[impTipo].forEach(([k, , , sins]) => {
+    let i = cab.findIndex(c => salvo[k] && c === salvo[k]);
+    if (i < 0) i = cab.findIndex(c => sins.includes(normCol(c)));
+    if (i < 0) i = cab.findIndex(c => sins.some(x => x.length >= 4 && normCol(c).includes(x)));
+    mapa[k] = i;
+  });
+  Object.assign(impArq, { aba: nome, h, cab, dados, mapa });
+  telaMapa();
+}
+function telaMapa() {
+  const { wb, aba, h, cab, dados, mapa } = impArq;
+  const ex = dados[0] || [];
+  const usadas = new Set(Object.values(mapa).filter(i => i >= 0));
+  const sobra = cab.filter((c, i) => !usadas.has(i));
+  $('prev').innerHTML = `<div class="card"><h3 style="margin-top:0">Confira as colunas</h3>
+    <p class="mut">Arquivo <b>${esc(impArq.nome)}</b> · ${dados.length} linha(s) de dados · cabeçalho na linha ${h + 1}.</p>
+    ${wb.SheetNames.length > 1 ? `<label>Aba da planilha</label><select onchange="abrirAba(this.value)">${wb.SheetNames.map(n => `<option ${n === aba ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>` : ''}
+    <div style="margin-top:6px">${CAMPOS[impTipo].map(([k, rot, obr]) => `<div style="padding:10px 0;border-bottom:1px solid var(--ln)">
+      <label style="margin:0 0 4px;color:var(--tx);font-weight:600">${rot}${obr ? ' <span class="tag bad">obrigatório</span>' : ''}</label>
+      <select onchange="impArq.mapa['${k}']=+this.value;telaMapa()">${['<option value="-1">— minha planilha não tem —</option>'].concat(cab.map((c, i) => `<option value="${i}" ${mapa[k] === i ? 'selected' : ''}>${esc(c)}</option>`)).join('')}</select>
+      ${mapa[k] >= 0 ? `<div class="mut" style="font-size:13px;margin-top:4px">Exemplo da 1ª linha: <span class="mono">${esc(txtCel(ex[mapa[k]])).slice(0, 24) || '(vazio)'}</span></div>` : ''}</div>`).join('')}</div>
+    ${sobra.length ? `<p class="mut">Colunas que não serão usadas: ${sobra.map(esc).join(', ')}.</p>` : ''}
+    <div style="height:10px"></div><button class="btn acc w" onclick="aplicarMapa()">Conferir os dados</button></div>`;
+}
+function aplicarMapa() {
+  try {
+    const { cab, dados, mapa } = impArq;
+    const faltam = CAMPOS[impTipo].filter(c => c[2] && !(mapa[c[0]] >= 0)).map(c => c[1]);
+    if (faltam.length) throw new Error('Escolha a coluna de: ' + faltam.join(', ') + '.');
+    const salvo = {}; Object.keys(mapa).forEach(k => { if (mapa[k] >= 0) salvo[k] = cab[mapa[k]]; }); LS.set('mapa_' + impTipo, salvo); // lembra para a próxima vez
+    const R = dados.map(r => { const o = {}; Object.keys(mapa).forEach(k => { if (mapa[k] >= 0) o[k] = txtCel(r[mapa[k]]); }); return o; });
+    if (!R.length) throw new Error('A planilha não tem linhas de dados.');
     imp = (impTipo === 'animais' ? prepAnimais : prepOutros)(R);
     const p = imp;
     $('prev').innerHTML = `<div class="card"><h3 style="margin-top:0">Prévia</h3><p>${p.resumo}</p>
       ${p.problemas.length ? `<div class="alert err"><b>${p.problemas.length} linha(s) não serão importadas:</b><br>${p.problemas.slice(0, 25).map(esc).join('<br>')}${p.problemas.length > 25 ? '<br>…' : ''}</div>` : ''}
       ${p.avisos.map(a => `<div class="alert">${a}</div>`).join('')}
-      <button class="btn acc w" onclick="confirmarImport()" ${p.eventos.length ? '' : 'disabled'}>Importar ${p.n} registro(s)</button></div>`;
+      <div class="row"><button class="btn sec" onclick="telaMapa()">Voltar às colunas</button><button class="btn acc" onclick="confirmarImport()" ${p.eventos.length ? '' : 'disabled'}>Importar ${p.n} registro(s)</button></div></div>`;
   } catch (e) { toast(e.message, 'err'); }
 }
 const pega = (r, ...ks) => { for (const k of ks) if (r[k] !== undefined && r[k] !== '') return r[k]; return ''; };
@@ -927,6 +996,24 @@ function telaCruzamento() {
     <p class="mut">O cálculo só enxerga o parentesco que está no pedigree. Animais sem pais registrados contam como não aparentados.</p>`;
 }
 
+// ===================== Trocar meu PIN =====================
+function telaMeuPin() {
+  $('main').innerHTML = `<h2>${user.trocarPin ? 'Crie o seu PIN' : 'Trocar meu PIN'}</h2>${user.trocarPin ? '<div class="alert">Você entrou com um PIN provisório. Crie agora um PIN só seu para continuar.</div>' : ''}<div class="card">
+    <label style="margin-top:0">${user.trocarPin ? 'PIN provisório que você recebeu' : 'PIN atual'}</label><input id="pA" type="password" inputmode="numeric">
+    <label>PIN novo (4 a 8 números)</label><input id="pN" type="password" inputmode="numeric">
+    <label>Repita o PIN novo</label><input id="pN2" type="password" inputmode="numeric">
+    <div style="height:12px"></div><button class="btn acc w" onclick="trocarPin()">Trocar PIN</button></div>`;
+}
+async function trocarPin() {
+  try {
+    if (v('pN') !== v('pN2')) throw new Error('Os dois PINs novos não conferem.');
+    const r = await chamar({ ...auth(), acao: 'meuPin', dados: { pinAtual: v('pA'), pinNovo: v('pN') } });
+    if (!r.ok) throw new Error(r.erro);
+    const eraProv = user.trocarPin; user.trocarPin = false; LS.set('user', user);
+    toast(eraProv ? 'Pronto! Seu PIN foi criado.' : 'PIN trocado.', 'ok'); ir(eraProv ? 'inicio' : 'mais');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
 // ===================== Sair =====================
 function telaSair() {
   $('main').innerHTML = `<h2>Sair</h2><div class="card">
@@ -948,10 +1035,12 @@ let listaUs = null;
 async function telaUsuarios(acao) {
   $('main').innerHTML = `<h2>Pessoas e PINs</h2>
     <div class="card"><p class="mut" style="margin-top:0">Cada pessoa entra com o nome e um PIN de 4 a 8 números. O PIN fica guardado protegido (cifrado) na planilha. Depois de 5 PINs errados, a pessoa fica bloqueada por 15 minutos.</p>
-    <div class="grid2"><div><label>Nome</label><input id="uNome" placeholder="ex.: Tiago"></div><div><label>PIN</label><input id="uPin" inputmode="numeric" type="password" placeholder="4 a 8 números"></div>
+    <div class="grid2"><div><label>Nome</label><input id="uNome" placeholder="ex.: Tiago"></div><div><label>E-mail (Gmail)</label><input id="uEmail" type="email" autocapitalize="off" placeholder="nome@gmail.com"></div>
+    <div><label>PIN inicial</label><input id="uPin" inputmode="numeric" type="password" placeholder="4 a 8 números"></div>
+    <div><label>Acesso à planilha no Google Drive</label><select id="uPlan"><option value="">Não compartilhar</option><option value="ver">Pode ver</option><option value="editar">Pode editar</option></select></div>
     <div><label>Perfil</label><select id="uPerfil"><option>Técnico</option><option>Administrador</option><option>Consulta</option></select></div>
     <div><label>Situação</label><select id="uAtivo"><option value="1">Ativo</option><option value="0">Desativado</option></select></div></div>
-    <p class="mut">Técnico lança manejos. Administrador também cadastra pessoas. Consulta só vê. Para trocar o PIN de alguém, digite o mesmo nome com o PIN novo.</p>
+    <p class="mut">A pessoa entra com o e-mail (ou o nome) e o PIN. <b>Administrador</b> também cadastra pessoas e exporta dados; <b>Técnico</b> lança manejos; <b>Consulta</b> só vê. "Acesso à planilha" compartilha a pasta Linhagem do Google Drive com o e-mail. Para trocar o PIN de alguém, salve a mesma pessoa com o PIN novo; cada um também pode trocar o próprio em Mais → Trocar meu PIN.</p>
     <button class="btn acc w" onclick="salvarUs()">Salvar pessoa</button></div>
     <h3>Cadastrados</h3><div class="card" id="listaUs"><p class="mut">${cfg.url ? 'Carregando…' : 'Configure o servidor para cadastrar pessoas.'}</p></div>`;
   if (!cfg.url) return;
@@ -963,19 +1052,19 @@ async function telaUsuarios(acao) {
   } catch (e) { $('listaUs').innerHTML = `<div class="alert err">${esc(e.message)}</div>`; }
 }
 function desenharUs() {
-  $('listaUs').innerHTML = (listaUs || []).length ? `<table><tr><th>Nome</th><th>Perfil</th><th>Situação</th></tr>${listaUs.map(u => `<tr onclick="$('uNome').value='${esc(u.nome)}';$('uPerfil').value='${esc(u.perfil)}';$('uAtivo').value='${u.ativo ? 1 : 0}';$('uPin').focus()" style="cursor:pointer"><td>${esc(u.nome)}</td><td>${esc(u.perfil)}</td><td>${u.ativo ? 'Ativo' : '<span class="tag bad">Desativado</span>'}</td></tr>`).join('')}</table><p class="mut">Toque numa pessoa para alterar.</p>` : '<p class="mut">Ninguém cadastrado ainda. Comece por você, como Administrador.</p>';
+  $('listaUs').innerHTML = (listaUs || []).length ? `<table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th></tr>${listaUs.map(u => `<tr onclick="$('uNome').value='${esc(u.nome)}';$('uEmail').value='${esc(u.email || '')}';$('uPerfil').value='${esc(u.perfil)}';$('uAtivo').value='${u.ativo ? 1 : 0}';$('uPin').focus()" style="cursor:pointer"><td>${esc(u.nome)}</td><td>${esc(u.email || '—')}</td><td>${esc(u.perfil)}</td><td>${u.ativo ? 'Ativo' : '<span class="tag bad">Desativado</span>'}</td></tr>`).join('')}</table><p class="mut">Toque numa pessoa para alterar.</p>` : '<p class="mut">Ninguém cadastrado ainda. Comece por você, como Administrador.</p>';
 }
 async function salvarUs() {
   try {
-    const d = { nome: v('uNome'), pin: v('uPin'), perfil: v('uPerfil'), ativo: v('uAtivo') === '1' };
+    const d = { nome: v('uNome'), email: v('uEmail'), pin: v('uPin'), perfil: v('uPerfil'), ativo: v('uAtivo') === '1', acessoPlanilha: v('uPlan') };
     if (!d.nome) throw new Error('Informe o nome.');
     const r = await chamar({ ...auth(), acao: 'usuario', dados: d });
     if (!r.ok) throw new Error(r.erro);
     if (d.nome.toLowerCase() === user.nome.toLowerCase() && d.pin && !user.token) { // primeiro acesso: troca para sessão
       const l = await chamar({ chave: cfg.chave, user: d.nome, pin: d.pin, login: true }); if (l.ok && l.token) { user = { nome: d.nome, token: l.token, perfil: l.perfil }; LS.set('user', user); }
     }
-    listaUs = r.usuarios; desenharUs(); $('uNome').value = ''; $('uPin').value = '';
-    toast('Pessoa salva.', 'ok');
+    listaUs = r.usuarios; desenharUs(); $('uNome').value = ''; $('uPin').value = ''; $('uEmail').value = '';
+    toast('Pessoa salva.' + (r.compartilhado ? ' Planilha compartilhada com ' + d.email + '.' : ''), 'ok');
   } catch (e) { toast(e.message, 'err'); }
 }
 
