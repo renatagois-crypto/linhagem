@@ -479,7 +479,30 @@ async def main():
         g = json.loads(urllib.request.urlopen(MOCK + '?chave=').read().decode())
         ok('R13', not g['ok'] and 'chave' in g['erro'], 'sem CHAVE configurada o servidor não abre: ' + g.get('erro', '')[:50])
         mock('__props?k=CHAVE&v=segredo')
-        # duas janelas do app no mesmo aparelho
+        # ---------- R14 celulares: Android (Chrome) e iPhone (ícone com memória separada) ----------
+        print('R14 — Android e iPhone')
+        dev = p.devices['Pixel 7']
+        cA = await b.new_context(**dev); pa = await cA.new_page()
+        await pa.goto(URL + '?s=' + MOCK + '&k=segredo'); await pa.wait_for_timeout(700)
+        await pa.fill('#lgNome', 'tiago@gmail.com'); await pa.fill('#lgPin', '123456'); await pa.click('button:has-text("Entrar")'); await pa.wait_for_timeout(900)
+        logou = await pa.evaluate("!!(user && user.token)")
+        if await pa.evaluate("tela") == 'meupin': await pa.evaluate("user.trocarPin=false;LS.set('user',user);ir('inicio')")
+        await pa.wait_for_timeout(600)
+        na = await pa.evaluate("Object.keys(S.animais).length")
+        ok('R14', logou and na >= 1 and '?s=' not in pa.url, f'Android: link do e-mail → login → base real no celular ({na} animais) e a chave some do endereço')
+        await pa.goto(URL.replace('index.html', '') + 'index.html'); await pa.wait_for_timeout(700)  # abrir pelo ícone instalado (start_url)
+        ok('R14', await pa.evaluate("!!cfg.url && !!(user && user.token) && Object.keys(S.animais).length") == na, 'Android: abrir pelo ícone instalado continua ligado, logado e com os dados')
+        await pa.evaluate("ir('sair')"); await pa.click('button:has-text("Sair (manter")'); await pa.wait_for_timeout(600)
+        ok('R14', await pa.locator('#lgPin').count() == 1 and await pa.evaluate("user") is None, 'Sair leva para a tela de login (dá para entrar de novo)')
+        await pa.goto(URL + '?s=' + MOCK + '&k=segredo'); await pa.wait_for_timeout(700)
+        ok('R14', await pa.locator('#lgPin').count() == 1, 'depois de sair, abrir o link do e-mail pede login de novo')
+        ck = await cA.cookies()
+        await cA.close()
+        dvi = p.devices['iPhone 13']
+        cI = await b.new_context(**dvi); await cI.add_cookies(ck); pi = await cI.new_page()  # ícone do iPhone: memória vazia, só os cookies do Safari
+        await pi.goto(URL); await pi.wait_for_timeout(700)
+        ok('R14', await pi.evaluate("cfg.url") == MOCK and await pi.locator('#lgPin').count() == 1 and 'Modo demonstração' not in await pi.inner_text('body'), 'iPhone: o ícone novo já abre ligado ao servidor (pede só o login), sem cair no modo demonstração')
+        await cI.close()
         pg3 = await ctx.new_page(); await pg3.goto(URL); await pg3.wait_for_timeout(600)
         ok('R13', await pg3.evaluate("janelaBloqueada") and 'outra janela' in await pg3.inner_text('#main') and not await pg.evaluate("janelaBloqueada"), 'segunda janela do app no mesmo aparelho fica bloqueada (não mistura a fila)')
         await pg3.close()

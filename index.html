@@ -116,10 +116,17 @@ details summary{cursor:pointer;color:var(--pri);font-weight:600;padding:6px 0}
 // ===================== Armazenamento local =====================
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('plantel_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem('plantel_' + k, JSON.stringify(v)); } catch (e) { toast('A memória do aparelho está cheia. Sincronize assim que possível.', 'err'); } }
+  set(k, v) {
+    try { localStorage.setItem('plantel_' + k, JSON.stringify(v)); } catch (e) { toast('A memória do aparelho está cheia. Sincronize assim que possível.', 'err'); }
+    if (k === 'cfg' || k === 'ultimoNome') cookieGuardar(k, v);
+  }
 };
+// Cópia em cookie do endereço do servidor: no iPhone, o ícone da tela de início tem memória própria,
+// mas recebe os cookies do Safari ao ser criado (iOS 17.2+). Assim o ícone já nasce ligado ao servidor.
+function cookieGuardar(k, v) { try { document.cookie = 'linhagem_' + k + '=' + encodeURIComponent(JSON.stringify(v)) + ';path=/;max-age=31536000;SameSite=Lax' + (location.protocol === 'https:' ? ';Secure' : ''); } catch (e) {} }
+function cookieLer(k) { try { const m = document.cookie.match(new RegExp('(?:^|; )linhagem_' + k + '=([^;]*)')); return m ? JSON.parse(decodeURIComponent(m[1])) : undefined; } catch (e) { return undefined; } }
 // Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
-const VERSAO = '1.4.1 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
+const VERSAO = '1.4.2 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
 const GRANDES = ['base', 'fila', 'recusados'];
 const IDB = {
   db: null,
@@ -146,6 +153,8 @@ async function carregarArmazenamento() {
 }
 function guardarGrande(k, v) { if (IDB.db) return IDB.gravar(k, v); LS.set(k, v); return Promise.resolve(true); }
 let cfg = LS.get('cfg', { url: '', chave: '', nome: 'Linhagem' });
+if (!cfg.url) { const c = cookieLer('cfg'); if (c && c.url) { cfg = c; LS.set('cfg', cfg); if (LS.get('ultimoNome', '') === '' && cookieLer('ultimoNome')) LS.set('ultimoNome', cookieLer('ultimoNome')); } }
+else if (!cookieLer('cfg')) cookieGuardar('cfg', cfg);
 let user = LS.get('user', null);
 let base = null;       // última cópia recebida do servidor
 let fila = [];         // lançamentos ainda não enviados
@@ -236,7 +245,7 @@ function atualizarSync() {
   const n = fila.length;
   b.className = 'sync' + (n ? ' pend' : '') + (!navigator.onLine ? ' off' : '');
   const hora = ultimaSync ? new Date(ultimaSync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
-  b.innerHTML = '<span class="gira' + (sincronizando ? ' on' : '') + '">⟳</span> ' + (sincronizando ? 'Enviando…' : !cfg.url ? 'Demonstração' + (n ? ' · ' + n : '') : n ? 'Enviar ' + n + (!navigator.onLine ? ' (sem sinal)' : '') : !navigator.onLine ? 'Sem sinal' : 'Sincronizar');
+  b.innerHTML = '<span class="gira' + (sincronizando ? ' on' : '') + '">⟳</span> ' + (sincronizando ? (n ? 'Enviando…' : 'Atualizando…') : !cfg.url ? 'Demonstração' + (n ? ' · ' + n : '') : n ? 'Enviar ' + n + (!navigator.onLine ? ' (sem sinal)' : '') : !navigator.onLine ? 'Sem sinal' : 'Sincronizar');
   b.title = cfg.url ? (n ? n + ' lançamento(s) aguardando envio. Toque para enviar agora.' : 'Tudo enviado' + (hora ? ' (última vez às ' + hora + ')' : '') + '. Toque para buscar as novidades.') : 'Modo demonstração: os dados ficam só neste aparelho.';
   const bar = $('barSync'); if (bar) bar.innerHTML = barraSync();
 }
@@ -245,8 +254,9 @@ function avisoRelogio() { return relogio ? `<div class="alert err" style="margin
 // situação do backup do Drive (o servidor manda junto com os dados). Devolve { txt, ruim }
 function situacaoBackup() {
   const b = base && base.backup; if (!b) return null;
-  const h = b.ok ? (Date.now() - new Date(b.ok).getTime()) / 3600e3 : 1e9;
-  const quando = b.ok ? new Date(b.ok).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'nenhum ainda';
+  const h = b.ok ? (Date.now() - new Date(b.ok).getTime()) / 3600e3 : 0;
+  // sem registro ainda (servidor recém-atualizado): o backup da madrugada passa a ser registrado; não é falha
+  const quando = b.ok ? new Date(b.ok).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'passa a aparecer depois do backup automático da madrugada';
   return { txt: 'Último backup no Drive: ' + quando + (b.erro ? ' · falhou em ' + fData(b.erro.em) + ': ' + b.erro.msg : ''), ruim: !!b.erro || h > 50 };
 }
 function avisoBackup() {
@@ -259,10 +269,13 @@ function barraSync() {
   if (avisos) return avisos + barraSync2();
   return barraSync2();
 }
+// falha de conexão passageira (celular foi para segundo plano, sinal caiu) sem nada a enviar não é problema
+function erroRelevante() { return erroSync && (fila.length || !/Load failed|Failed to fetch|NetworkError|network|demorou|abort/i.test(erroSync.msg)) ? erroSync : null; }
 function barraSync2() {
+  const erroSync = erroRelevante();
   const n = fila.length, hora = ultimaSync ? new Date(ultimaSync).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ainda não';
   if (!n && !sincronizando && !recusados.length && !erroSync && navigator.onLine) return `<p class="mut" style="margin:0 0 10px;font-size:14px">✓ Tudo enviado · ${hora}</p>`;
-  return `<div class="bsync ${n ? 'pend' : ''}"><div><b>${sincronizando ? 'Enviando…' : n ? n + ' lançamento(s) aguardando envio' : 'Tudo enviado'}</b><small>${navigator.onLine ? 'Última sincronização: ' + hora : 'Sem internet agora: os lançamentos ficam guardados e vão sozinhos quando o sinal voltar.'}</small></div><button class="btn ${n ? 'acc' : 'sec'}" onclick="sincronizar(true)" ${sincronizando ? 'disabled' : ''}>⟳ Sincronizar</button></div>${recusados.length || erroSync || n ? `<div class="alert ${recusados.length || erroSync ? 'err' : ''}" style="margin:-4px 0 12px;cursor:pointer" onclick="ir('pendencias')">${recusados.length ? '⚠ ' + recusados.length + ' lançamento(s) recusado(s) precisam de atenção. ' : ''}${erroSync && !recusados.length ? '⚠ O último envio falhou. ' : ''}<b>Ver o que está pendente ›</b></div>` : ''}`;
+  return `<div class="bsync ${n ? 'pend' : ''}"><div><b>${sincronizando ? (n ? 'Enviando…' : 'Atualizando…') : n ? n + ' lançamento(s) aguardando envio' : 'Tudo enviado'}</b><small>${navigator.onLine ? 'Última sincronização: ' + hora : 'Sem internet agora: os lançamentos ficam guardados e vão sozinhos quando o sinal voltar.'}</small></div><button class="btn ${n ? 'acc' : 'sec'}" onclick="sincronizar(true)" ${sincronizando ? 'disabled' : ''}>⟳ Sincronizar</button></div>${recusados.length || erroSync || n ? `<div class="alert ${recusados.length || erroSync ? 'err' : ''}" style="margin:-4px 0 12px;cursor:pointer" onclick="ir('pendencias')">${recusados.length ? '⚠ ' + recusados.length + ' lançamento(s) recusado(s) precisam de atenção. ' : ''}${erroSync && !recusados.length ? '⚠ O último envio falhou. ' : ''}<b>Ver o que está pendente ›</b></div>` : ''}`;
 }
 window.addEventListener('online', () => { atualizarSync(); sincronizar(); });
 window.addEventListener('offline', atualizarSync);
@@ -1495,8 +1508,7 @@ function mudarSug(id, st) { try { lancar([ev('sugestao_status', { id, status: st
 (function () {
   try {
     const q = new URLSearchParams(location.search);
-    // o endereço fica com ?s=&k=: no iPhone, o ícone da tela de início abre exatamente este endereço e tem memória separada do Safari
-    if (q.get('s')) { if (!cfg.url) window.__eraDemo = true; cfg.url = q.get('s'); cfg.chave = q.get('k') || cfg.chave; LS.set('cfg', cfg); }
+    if (q.get('s')) { if (!cfg.url) window.__eraDemo = true; cfg.url = q.get('s'); cfg.chave = q.get('k') || cfg.chave; LS.set('cfg', cfg); history.replaceState(null, '', location.pathname); }
   } catch (e) {}
 })();
 // Uma janela só: duas janelas abertas (app instalado + navegador) poderiam sobrescrever a fila uma da outra
