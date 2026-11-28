@@ -17,20 +17,20 @@ header img{width:34px;height:34px;border-radius:9px}
 header .t{flex:1;min-width:0}
 header .t b{display:block;font-size:17px}
 header .t small{opacity:.8;font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sync{font-size:12px;padding:6px 10px;border-radius:99px;background:rgba(255,255,255,.15);white-space:nowrap;border:0;color:#fff}
-.sync{border:1px solid rgba(255,255,255,.45)!important;font-weight:600;cursor:pointer;min-height:34px}.sync.pend{background:var(--acc);border-color:var(--acc)!important}
+.sync{font-size:13px;padding:6px 10px;border-radius:99px;background:rgba(255,255,255,.15);white-space:nowrap;border:0;color:#fff}
+.sync{border:1px solid rgba(255,255,255,.45)!important;font-weight:600;cursor:pointer;min-height:42px}.sync.pend{background:var(--acc);border-color:var(--acc)!important}
 .gira{display:inline-block}.gira.on{animation:gira 1s linear infinite}@keyframes gira{to{transform:rotate(360deg)}}
-.bsync{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--ln);border-radius:14px;padding:10px 12px;margin:0 0 12px}.bsync.pend{border-color:var(--acc);background:#FFF6EE}.bsync b{display:block;font-size:14px}.bsync small{color:var(--mut);font-size:12px}.bsync .btn{min-height:40px;padding:8px 12px;white-space:nowrap;width:auto}
+.bsync{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--ln);border-radius:14px;padding:10px 12px;margin:0 0 12px}.bsync.pend{border-color:var(--acc);background:#FFF6EE}.bsync b{display:block;font-size:14px}.bsync small{color:var(--mut);font-size:13px}.bsync .btn{min-height:40px;padding:8px 12px;white-space:nowrap;width:auto}
 .sync.off{background:#6b4a2a}
 main{padding:14px;padding-bottom:170px;max-width:860px;margin:0 auto}
 nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--ln);display:flex;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;border:0;background:none;padding:9px 2px 10px;font-size:12px;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px}
+nav button{flex:1;border:0;background:none;padding:9px 2px 10px;font-size:13px;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px}
 nav button svg{width:24px;height:24px}
 nav button.on{color:var(--pri);font-weight:600}
 h2{font-size:20px;margin:6px 0 12px}
 h3{font-size:16px;margin:18px 0 8px;color:var(--pri2)}
 .card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:14px;margin-bottom:12px}
-label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+label{display:block;font-size:14px;color:var(--mut);margin:10px 0 4px}
 input,select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #C7D3D2;border-radius:10px;background:#fff;color:var(--tx);min-height:48px}
 input:focus,select:focus,textarea:focus{outline:3px solid rgba(15,92,99,.25);border-color:var(--pri)}
 .busca{font-size:22px;letter-spacing:1px;text-align:center}
@@ -38,7 +38,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(15,92,99,.25);bor
 .btn.sec{background:#E4ECEB;color:var(--pri2)}
 .btn.acc{background:var(--acc)}
 .btn.w{width:100%}
-.btn.sm{min-height:38px;padding:8px 12px;font-size:14px}
+.btn.sm{min-height:44px;padding:8px 12px;font-size:15px}
 .row{display:flex;gap:10px}.row>*{flex:1}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1px solid #C7D3D2;background:#fff;border-radius:99px;padding:10px 14px;font:500 15px system-ui,sans-serif;min-height:44px;color:var(--tx)}
@@ -46,24 +46,24 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(15,92,99,.25);bor
 .item{display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--ln);cursor:pointer}
 .item:last-child{border-bottom:0}
 .item .m{flex:1;min-width:0}
-.item .s{font-size:13px;color:var(--mut)}
+.item .s{font-size:14px;color:var(--mut)}
 .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
 .chipnum{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;color:var(--mut)}
 .chipnum b{color:var(--tx);font-size:18px}
-.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:#E4ECEB;color:var(--pri2);margin-right:4px}
+.tag{display:inline-block;font-size:13px;padding:2px 8px;border-radius:99px;background:#E4ECEB;color:var(--pri2);margin-right:4px}
 .tag.M{background:#DCEAF7;color:#1C4E80}.tag.F{background:#F9E1D2;color:#8A3E12}.tag.I{background:#EEE;color:#555}
 .tag.bad{background:#F6D9D6;color:var(--err)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
 .kpi{background:#fff;border:1px solid var(--ln);border-radius:14px;padding:12px}
 .kpi b{display:block;font-size:26px;color:var(--pri)}
-.kpi span{font-size:13px;color:var(--mut)}
+.kpi span{font-size:14px;color:var(--mut)}
 .tl{border-left:3px solid var(--ln);margin-left:6px;padding-left:14px}
 .tl .ev{position:relative;padding:6px 0 12px}
 .tl .ev:before{content:"";position:absolute;left:-21px;top:11px;width:11px;height:11px;border-radius:50%;background:var(--acc)}
 .tl .ev small{color:var(--mut)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--ln)}
-th{color:var(--mut);font-weight:600;font-size:12px}
+th{color:var(--mut);font-weight:600;font-size:13px}
 .bar{height:8px;background:#E4ECEB;border-radius:9px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--pri)}
 .bar i.hi{background:var(--err)}
@@ -83,15 +83,15 @@ th{color:var(--mut);font-weight:600;font-size:12px}
 .hero{background:linear-gradient(160deg,#11606A,#083A40);color:#fff;border-radius:18px;padding:16px;margin-bottom:12px}
 .hero label{color:#CFE7E4}.hero input{border:0}
 .acoes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
-.acao{background:#fff;border:1px solid var(--ln);border-radius:14px;padding:12px 6px;text-align:center;font:600 13px system-ui,sans-serif;color:var(--pri2);min-height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.acao{background:#fff;border:1px solid var(--ln);border-radius:14px;padding:12px 6px;text-align:center;font:600 14px system-ui,sans-serif;color:var(--pri2);min-height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer}
 .acao span{font-size:24px;line-height:1}
 .st{font-size:12px;padding:2px 8px;border-radius:99px}.st.Nova{background:#FFF0D6;color:#8A5A00}.st.Em{background:#DCEAF7;color:#1C4E80}.st.Feita{background:#DDF1E4;color:#1E6B3C}.st.Descartada{background:#EEE;color:#666}
 a.lk{color:var(--pri);font-weight:600;cursor:pointer;text-decoration:none}
 details summary{cursor:pointer;color:var(--pri);font-weight:600;padding:6px 0}
 @media print{header,nav,.noprint{display:none!important}main{padding:0;max-width:none}.card{break-inside:avoid;border-color:#bbb}}
 .faltando{border:2px solid var(--err)!important;border-radius:12px;background:#FFF5F4}
-.barSalvar{position:fixed;left:0;right:0;bottom:calc(57px + env(safe-area-inset-bottom));z-index:4;background:#fff;border-top:1px solid var(--ln);box-shadow:0 -6px 18px rgba(8,58,64,.08);display:flex;gap:10px;align-items:center;padding:8px 14px}.bsInfo{flex:1;min-width:0}.bsInfo b{display:block;font-size:14px}.bsInfo small{display:block;color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.barSalvar .btn{width:auto;min-height:46px;padding:10px 16px;white-space:nowrap}
-.tacao{margin-left:12px;background:#fff;color:var(--tx);border:0;border-radius:8px;padding:8px 12px;font-weight:700;font-size:15px;min-height:40px}
+.barSalvar{position:fixed;left:0;right:0;bottom:calc(57px + env(safe-area-inset-bottom));z-index:4;background:#fff;border-top:1px solid var(--ln);box-shadow:0 -6px 18px rgba(8,58,64,.08);display:flex;gap:10px;align-items:center;padding:8px 14px}.bsInfo{flex:1;min-width:0}.bsInfo b{display:block;font-size:14px}.bsInfo small{display:block;color:var(--mut);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.barSalvar .btn{width:auto;min-height:46px;padding:10px 16px;white-space:nowrap}
+.tacao{margin-left:12px;background:#fff;color:var(--tx);border:0;border-radius:8px;padding:8px 12px;font-weight:700;font-size:16px;min-height:44px}
 .modal{position:fixed;inset:0;background:rgba(8,30,33,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center;padding:12px}
 .mcard{background:#fff;border-radius:18px;padding:18px;width:100%;max-width:480px;max-height:90vh;overflow:auto}.mcard h3{margin:0 0 8px;font-size:19px}.mcorpo{font-size:16px;line-height:1.4;margin-bottom:12px}.mbtns{display:grid;gap:8px}.mbtns .btn{min-height:52px;font-size:16px}
 .voltar button{min-height:48px!important}.lk{display:inline-block;padding:10px 0}.mut{color:#4C6165}
@@ -99,7 +99,7 @@ details summary{cursor:pointer;color:var(--pri);font-weight:600;padding:6px 0}
 .toggle{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid var(--ln);border-radius:12px;padding:12px;margin-top:12px;font-size:16px}.toggle input{width:26px;min-height:26px}
 .bsInfo .chipbig{font-size:20px;font-weight:800;letter-spacing:.5px}
 .destmantido{background:#FFF0E2;border:1px solid var(--acc);border-radius:10px;padding:8px 12px;margin-top:10px;font-size:15px}
-.voltar{display:flex;justify-content:space-between;margin:-4px 0 6px}.voltar button{background:none;border:0;color:var(--pri);font:600 15px inherit;font-family:inherit;padding:8px 2px;min-height:40px;cursor:pointer}
+.voltar{display:flex;justify-content:space-between;margin:-4px 0 6px}.voltar button{background:none;border:0;color:var(--pri);font:600 16px inherit;font-family:inherit;padding:8px 2px;min-height:48px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -119,13 +119,19 @@ const LS = {
   set(k, v) { try { localStorage.setItem('plantel_' + k, JSON.stringify(v)); } catch (e) { toast('A memória do aparelho está cheia. Sincronize assim que possível.', 'err'); } }
 };
 // Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
-const VERSAO = '1.3 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
+const VERSAO = '1.4 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
 const GRANDES = ['base', 'fila', 'recusados'];
 const IDB = {
   db: null,
   abrir() { return new Promise((ok, no) => { const r = indexedDB.open('linhagem', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => { this.db = r.result; ok(); }; r.onerror = () => no(r.error); }); },
   ler(k) { return new Promise(ok => { try { const q = this.db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => ok(undefined); } catch (e) { ok(undefined); } }); },
-  gravar(k, v) { try { const t = this.db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.onerror = () => toast('Não consegui guardar no aparelho: ' + (t.error && t.error.message), 'err'); } catch (e) { LS.set(k, v); } }
+  // só confirma quando a gravação terminou de verdade; se falhar, tenta o armazenamento simples e avisa
+  gravar(k, v) {
+    return new Promise(ok => {
+      const falhou = err => { const okLS = (() => { try { localStorage.setItem('plantel_' + k, JSON.stringify(v)); return true; } catch (e) { return false; } })(); if (!okLS) toast('Não consegui guardar no aparelho: ' + ((err && err.message) || 'memória cheia') + '. Não feche o app e sincronize.', 'err'); ok(okLS); };
+      try { const t = this.db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => ok(true); t.onerror = () => falhou(t.error); t.onabort = () => falhou(t.error); } catch (e) { falhou(e); }
+    });
+  }
 };
 async function carregarArmazenamento() {
   try {
@@ -138,7 +144,7 @@ async function carregarArmazenamento() {
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   } catch (e) { IDB.db = null; } // sem IndexedDB: segue no localStorage
 }
-function guardarGrande(k, v) { if (IDB.db) IDB.gravar(k, v); else LS.set(k, v); }
+function guardarGrande(k, v) { if (IDB.db) return IDB.gravar(k, v); LS.set(k, v); return Promise.resolve(true); }
 let cfg = LS.get('cfg', { url: '', chave: '', nome: 'Linhagem' });
 let user = LS.get('user', null);
 let base = null;       // última cópia recebida do servidor
@@ -146,6 +152,7 @@ let fila = [];         // lançamentos ainda não enviados
 let recusados = [];
 let S = novoEstado();
 let tela = 'inicio', telaArg = null;
+let relogio = LS.get('relogio', 0), janelaBloqueada = false;
 let syncDeNovo = false, sincronizando = false, ultimaSync = LS.get('ultimaSync', ''), erroSync = LS.get('erroSync', null);
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -161,28 +168,38 @@ function recalcular() {
   S.usados = S.usados || {};
   fila.forEach(ev => { try { aplicar(S, ev); delete ev._erro; } catch (e) { ev._erro = e.message; } });
 }
-function salvarLocal() { guardarGrande('fila', fila); guardarGrande('recusados', recusados); guardarGrande('base', base); }
+function salvarLocal() { return Promise.all([guardarGrande('fila', fila), guardarGrande('recusados', recusados), guardarGrande('base', base)]).then(r => r.every(Boolean)); }
 
 // Registra um ou vários lançamentos: valida no aparelho, guarda na fila e tenta enviar
 function lancar(eventos) {
-  for (const e of eventos) { const m = podeLancar(user && user.perfil, e); if (m) throw new Error(m); }
+  if (janelaBloqueada) throw new Error('O Linhagem está aberto em outra janela. Use só uma.');
+  for (const e of eventos) { const m = podeLancar(user && user.perfil, e) || dataFutura(e); if (m) throw new Error(m); }
   const teste = clone(S);
   for (const ev of eventos) aplicar(teste, ev); // lança erro se alguma regra for violada
   fila.push(...eventos);
   S = teste;
-  salvarLocal();
+  const gravou = salvarLocal(); // devolve a promessa: quem quiser espera a gravação terminar antes de dizer "salvo"
   atualizarSync();
-  setTimeout(() => sincronizar(), 300);
+  gravou.then(() => setTimeout(() => sincronizar(), 300));
+  return gravou;
 }
 function ev(tipo, p) { return { uid: uid(), tipo, ts: new Date().toISOString(), user: user ? user.nome : '', p }; }
 
 // ===================== Sincronização =====================
 function auth() { return user && user.token ? { chave: cfg.chave, user: user.nome, token: user.token } : { chave: cfg.chave, user: user && user.nome, pin: user && user.pin }; }
-async function chamar(body) {
-  const r = await fetch(cfg.url, { method: 'POST', body: JSON.stringify(body) });
-  return r.json();
+// sinal fraco: desiste depois de 45 s (reenviar é seguro: o servidor não aplica duas vezes o mesmo lançamento)
+async function chamar(body, ms) {
+  const ac = typeof AbortController !== 'undefined' ? new AbortController() : null, t = ac && setTimeout(() => ac.abort(), ms || 45000);
+  try {
+    const r = await fetch(cfg.url, { method: 'POST', body: JSON.stringify(body), signal: ac ? ac.signal : undefined });
+    return await r.json();
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new Error('O servidor demorou para responder (sinal fraco). Os lançamentos continuam guardados e vão no próximo envio');
+    throw e;
+  } finally { if (t) clearTimeout(t); }
 }
 async function sincronizar(manual) {
+  if (janelaBloqueada) return;
   if (!cfg.url) { if (manual) toast('Modo demonstração: os dados ficam só neste aparelho. Configure o servidor em Mais → Configurações.'); return; }
   if (!navigator.onLine) { if (manual) toast('Sem internet. Os lançamentos ficam guardados e serão enviados depois.'); return; }
   if (sincronizando) { syncDeNovo = true; return; } // termina o envio atual e envia de novo
@@ -203,6 +220,8 @@ async function sincronizar(manual) {
     const nRec = fila.length - nova.length - Object.values(res).filter(x => x.ok).length;
     fila = nova;
     base = r.foto;
+    // relógio do celular muito diferente do servidor: datas e prazos ficam errados
+    if (r.foto && r.foto.em) { const dif = (Date.now() - new Date(r.foto.em).getTime()) / 3600e3; relogio = Math.abs(dif) > 2 ? dif : 0; LS.set('relogio', relogio); }
     ultimaSync = new Date().toISOString(); LS.set('ultimaSync', ultimaSync); erroSync = null; LS.set('erroSync', null);
     salvarLocal(); recalcular(); render();
     if (nRec > 0) toast(nRec + ' lançamento(s) recusado(s) pelo servidor. Veja em Mais → Pendências.', 'err');
@@ -222,8 +241,25 @@ function atualizarSync() {
   const bar = $('barSync'); if (bar) bar.innerHTML = barraSync();
 }
 // faixa da tela inicial: situação da sincronização e botão grande
+function avisoRelogio() { return relogio ? `<div class="alert err" style="margin:0 0 12px">⚠ O relógio do celular está <b>${Math.round(Math.abs(relogio))} h ${relogio > 0 ? 'adiantado' : 'atrasado'}</b>. Acerte a data e a hora nas configurações do celular (deixe "automática").</div>` : ''; }
+// situação do backup do Drive (o servidor manda junto com os dados). Devolve { txt, ruim }
+function situacaoBackup() {
+  const b = base && base.backup; if (!b) return null;
+  const h = b.ok ? (Date.now() - new Date(b.ok).getTime()) / 3600e3 : 1e9;
+  const quando = b.ok ? new Date(b.ok).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'nenhum ainda';
+  return { txt: 'Último backup no Drive: ' + quando + (b.erro ? ' · falhou em ' + fData(b.erro.em) + ': ' + b.erro.msg : ''), ruim: !!b.erro || h > 50 };
+}
+function avisoBackup() {
+  if (!user || user.perfil !== 'Administrador') return '';
+  const b = situacaoBackup(); return b && b.ruim ? `<div class="alert err" style="margin:0 0 12px">⚠ ${esc(b.txt)}. Confira o espaço no Google Drive.</div>` : '';
+}
 function barraSync() {
-  if (!cfg.url) return `<div class="bsync"><div><b>Modo demonstração</b><small>Os dados ficam só neste aparelho.</small></div></div>`;
+  if (!cfg.url) return `<div class="bsync"><div><b>Modo demonstração</b><small>Os registros ficam só neste aparelho. Nada é enviado.</small></div></div>`;
+  const avisos = avisoRelogio() + avisoBackup();
+  if (avisos) return avisos + barraSync2();
+  return barraSync2();
+}
+function barraSync2() {
   const n = fila.length, hora = ultimaSync ? new Date(ultimaSync).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ainda não';
   if (!n && !sincronizando && !recusados.length && !erroSync && navigator.onLine) return `<p class="mut" style="margin:0 0 10px;font-size:14px">✓ Tudo enviado · ${hora}</p>`;
   return `<div class="bsync ${n ? 'pend' : ''}"><div><b>${sincronizando ? 'Enviando…' : n ? n + ' lançamento(s) aguardando envio' : 'Tudo enviado'}</b><small>${navigator.onLine ? 'Última sincronização: ' + hora : 'Sem internet agora: os lançamentos ficam guardados e vão sozinhos quando o sinal voltar.'}</small></div><button class="btn ${n ? 'acc' : 'sec'}" onclick="sincronizar(true)" ${sincronizando ? 'disabled' : ''}>⟳ Sincronizar</button></div>${recusados.length || erroSync || n ? `<div class="alert ${recusados.length || erroSync ? 'err' : ''}" style="margin:-4px 0 12px;cursor:pointer" onclick="ir('pendencias')">${recusados.length ? '⚠ ' + recusados.length + ' lançamento(s) recusado(s) precisam de atenção. ' : ''}${erroSync && !recusados.length ? '⚠ O último envio falhou. ' : ''}<b>Ver o que está pendente ›</b></div>` : ''}`;
@@ -255,6 +291,7 @@ let pilhaFicha = [];
 function ir(t, arg, semHistorico) {
   if (t === 'voltarFicha') { const p = pilhaFicha.pop(); window.__voltando = true; ir('ficha', p); window.__voltando = false; setTimeout(() => { const g = [...document.querySelectorAll('h3')].find(x => x.textContent === 'Genealogia'); if (g) { g.scrollIntoView(); window.scrollBy(0, -80); } }, 30); return; }
   if (t === 'ficha' && !window.__voltando) { if (tela === 'ficha' && telaArg && arg !== telaArg) pilhaFicha.push(telaArg); else if (tela !== 'ficha') pilhaFicha = []; }
+  if (t !== 'lancar') window.__corrigindo = null;
   if (t === 'lancar') { limparForm = true; L.data = hoje(); L.mudou = false; L.seq = 0; veioFicha = !!arg; if (!arg) animalSel = null; }
   tela = t; telaArg = arg;
   // botão "voltar" do celular volta para a tela anterior do app, em vez de sair
@@ -487,10 +524,10 @@ function telaLancar(idAnimal) {
   const mostraMuda = !novo && L.sub !== 'Mudança de viveiro' && !ehBaixa();
   const mostraDest = (novo || L.sub === 'Mudança de viveiro' || L.mudou) && !ehBaixa();
   $('main').innerHTML = `
-    <h2>Lançar manejo</h2>
+    <h2>Lançar manejo</h2>${avisoRelogio()}
     <div class="card">
       <div class="passo"><span>1</span> Qual manejo?</div>
-      <div class="chips">${TIPOS.map(t => `<button class="chip ${L.sub === t ? 'on' : ''}" onclick="L.sub='${t}';guardar();telaLancar()">${t}</button>`).join('')}</div>
+      <div class="chips">${TIPOS.map(t => `<button class="chip ${L.sub === t ? 'on' : ''}" onclick="if(L.sub!=='${t}')L.seq=0;L.sub='${t}';guardar();telaLancar()">${t}</button>`).join('')}</div>
     </div>
     <div class="card">
       ${novo ? `<div class="passo"><span>2</span> Dados do animal novo</div>${formNovo()}` : `
@@ -510,7 +547,7 @@ function telaLancar(idAnimal) {
       ${mostraMuda ? `<label>Houve mudança de viveiro?</label>
         <div class="chips"><button class="chip ${!L.mudou ? 'on' : ''}" onclick="L.mudou=false;guardar();telaLancar()">Não</button><button class="chip ${L.mudou ? 'on' : ''}" onclick="L.mudou=true;guardar();telaLancar()">Sim</button></div>` : ''}
       ${mostraDest ? `<label>${novo ? 'Viveiro onde o animal vai ficar' : 'Viveiro de destino'}${a ? ' (hoje está no ' + esc(viv(a.viveiro)) + ')' : ''}</label>${botoesSelect('fDest', vivOpts(L.destino, true), "L.destino=this.value;guardar();barraDestino()")}${L.lote && L.destino && !veioFicha ? `<div class="destmantido">Destino mantido do peixe anterior: <b>${esc(viv(L.destino))}</b>. Confira a cada peixe.</div>` : ''}` : ''}
-      <div class="grid2"><div><label>Data</label><input id="fData" type="date" value="${L.data}" onchange="L.data=this.value;guardar()"></div>
+      <div class="grid2"><div><label>Data</label><input id="fData" type="date" value="${L.data}" max="${hoje()}" onchange="L.data=this.value;guardar()"></div>
       </div>${veioFicha ? '' : `<label class="toggle"><span><b>Vários animais seguidos</b><br><small class="mut">Depois de salvar, a tela volta pronta para o próximo peixe</small></span><input type="checkbox" ${L.lote ? 'checked' : ''} onchange="L.lote=this.checked;guardar();telaLancar()"></label>`}
       <label>Observações</label><textarea id="fObs" rows="2"></textarea>
       <div style="height:14px"></div>
@@ -570,13 +607,13 @@ function camposTipo(a) {
       <label>Qualidade visual</label><select id="oQual"><option></option><option>Boa</option><option>Regular</option><option>Ruim</option></select>
       <label>Destino da desova</label><select id="oDest" onchange="$('oFert').classList.toggle('hide',this.value!=='Fertilização')"><option>Fertilização</option><option>Análise laboratorial</option><option>Descarte</option></select>
       <div id="oFert"><label>Sêmen usado *</label><div class="chipdest"><button type="button" class="chip on" id="tgCong" onclick="tipoSemen('C')">Congelado (do banco)</button><button type="button" class="chip" id="tgFres" onclick="tipoSemen('F')">Fresco (macho na hora)</button></div>
-      <div id="oCong"><label>Lote de sêmen congelado</label><select id="oLote" onchange="saldoLote()"><option value="">Escolha o lote</option>${lotes.map(l => { const d = S.animais[l.doador], c = S.canecas[l.caneca] || {}; return `<option value="${l.id}">${d ? '…' + esc(d.chip.slice(-5)) : '?'} · ${fData(l.data)} · ${l.disp} doses · ${esc(rotCan(c))}</option>`; }).join('')}</select>
+      <div id="oCong"><label>Lote de sêmen congelado</label><select id="oLote" onchange="saldoLote()"><option value="">Escolha o lote</option>${lotes.map(l => { const d = S.animais[l.doador], c = S.canecas[l.caneca] || {}; return `<option value="${l.id}">${codLote(l.id)} · ${d ? '…' + esc(d.chip.slice(-5)) : '?'} · ${fData(l.data)} · ${l.disp} doses · ${esc(rotCan(c))}</option>`; }).join('')}</select>
       ${campo('oDoses', 'Doses usadas', 'n', 'oninput="saldoLote()"')}<div id="oSaldo" class="destmantido hide"></div></div>
       <div id="oFresco" class="hide"><label>Macho do cruzamento</label><select id="oMacho"><option value="">—</option>${machos.map(m => `<option value="${m.id}">…${esc(m.chip.slice(-6))} · safra ${esc(m.safra)}</option>`).join('')}</select></div></div>`;
   }
   if (sub === 'Rechipagem') return `<div class="grid2">${campo('rChip', 'Novo chip (15 dígitos)', 'n')}${campo('rMot', 'Motivo')}</div>`;
   if (sub === 'Outro manejo') {
-    return `<label>Qual manejo?</label><div class="chips">${OUTROS.map(o => `<button class="chip ${L.outro === o ? 'on' : ''}" onclick="L.outro='${o}';guardar();telaLancar()">${o}</button>`).join('')}</div>
+    return `<label>Qual manejo?</label><div class="chips">${OUTROS.map(o => `<button class="chip ${L.outro === o ? 'on' : ''}" onclick="if(L.outro!=='${o}')L.seq=0;L.outro='${o}';guardar();telaLancar()">${o}</button>`).join('')}</div>
       <label>Detalhe</label><input id="xDet" placeholder="ex.: produto, dose, resultado">
       ${OUTROS.slice(5).includes(L.outro) ? '<div class="alert err">Este lançamento dá baixa no animal. Ele não poderá receber novos manejos.</div>' : ''}`;
   }
@@ -615,7 +652,7 @@ async function salvarLanc() {
     if (L.sub === 'Novo animal (chipagem)') {
       marcarFaltando(['nChip', 'fDest'], 'Falta preencher');
       const e = ev('animal_novo', { id: uid(), chip: v('nChip'), sexo: v('nSexo'), safra: v('nSafra'), classe: v('nClasse'), pai: acharUm(v('nPai'), 'M', 'Pai'), mae: acharUm(v('nMae'), 'F', 'Mãe'), viveiro: dest, data, obs });
-      lancar([e]); toast('Animal ' + normChip(e.p.chip) + ' cadastrado.', 'ok');
+      if (!(await lancar([e]))) return; toast('Animal ' + normChip(e.p.chip) + ' cadastrado.', 'ok');
       L.destino = dest; guardar(); limparForm = true; return telaLancar();
     }
     const a = S.animais[animalSel];
@@ -640,7 +677,9 @@ async function salvarLanc() {
     if (a.sexo === 'M' && L.sub === 'Coleta de ovócitos') throw new Error('Coleta de ovócitos só pode ser feita em Fêmea.');
     if (a.sexo === 'I' && (L.sub === 'Coleta de sêmen' || L.sub === 'Coleta de ovócitos') && !(await modal('Sexo indefinido', 'Este animal está com sexo indefinido. Confirmar que é <b>' + (L.sub === 'Coleta de sêmen' ? 'Macho' : 'Fêmea') + '</b>?', [{ t: 'Sim, confirmar', cls: 'acc', v: true }, { t: 'Cancelar', v: false }]))) return;
     const evL = ev('atividade', { animal: a.id, sub: L.sub, dados, mudou, destino: mudou ? dest : '', origemEsperada: a.viveiro, data, obs, confirmaSexo: true });
-    lancar([evL]);
+    const gravou = await lancar([evL]);
+    if (window.__corrigindo != null) { recusados.splice(window.__corrigindo, 1); window.__corrigindo = null; salvarLocal(); }
+    if (!gravou) return; // o aviso de falha já apareceu; não diz "salvo"
     if (mudou) L.destino = dest;
     guardar();
     L.seq = (L.seq || 0) + 1;
@@ -730,7 +769,7 @@ function salvarEdicao(id) {
 function buscaDoador() {
   const q = $('qD').value.trim(); if (!q) return $('resD').innerHTML = '';
   const ls = Object.values(S.lotes).filter(l => { const d = S.animais[l.doador]; return d && (d.chip.endsWith(normChip(q)) || d.chip.endsWith(q)); });
-  $('resD').innerHTML = ls.length ? ls.map(l => { const d = S.animais[l.doador], c = S.canecas[l.caneca]; return `<div class="item" onclick="ir('ficha','${d.id}')"><div class="m">${chipFmt(d.chip)}<div class="s">Coleta ${fData(l.data)} · ${esc(rotCan(c))}${l.cor ? ' · ' + esc(l.cor) : ''} · <b>${l.disp}</b> de ${l.ini} doses</div></div><span>›</span></div>`; }).join('') : '<p class="mut">Nenhum lote de doador com esse final.</p>';
+  $('resD').innerHTML = ls.length ? ls.map(l => { const d = S.animais[l.doador], c = S.canecas[l.caneca]; return `<div class="item" onclick="ir('ficha','${d.id}')"><div class="m">${chipFmt(d.chip)}<div class="s">${codLote(l.id)} · coleta ${fData(l.data)} · ${esc(rotCan(c))}${l.cor ? ' · ' + esc(l.cor) : ''} · <b>${l.disp}</b> de ${l.ini} doses</div></div><span>›</span></div>`; }).join('') : '<p class="mut">Nenhum lote de doador com esse final.</p>';
 }
 function telaSemen() {
   const lotes = Object.values(S.lotes);
@@ -752,14 +791,14 @@ function telaSemen() {
         const ls = lotes.filter(l => l.caneca === c.id && l.disp > 0), tot = ls.reduce((t, l) => t + l.disp, 0);
         return `<div style="margin:10px 0"><b>Caneca ${esc(c.caneca)}</b>${c.cor ? ' <span class="tag">' + esc(c.cor) + '</span>' : ''} <span class="mut">${tot} dose(s)${c.cap ? ' de ' + c.cap : ''}</span>
           ${c.cap ? `<div class="bar"><i class="${tot > c.cap ? 'hi' : ''}" style="width:${Math.min(100, tot / c.cap * 100)}%"></i></div>` : ''}
-          ${ls.map(l => { const d = S.animais[l.doador]; return `<div class="item" style="padding:8px 0"><div class="m">${d ? linkAn(d.id, 'Doador') : '?'} <span class="mut">· safra ${esc(d ? d.safra : '')} · coleta ${fData(l.data)}${l.cor ? ' · ' + esc(l.cor) : ''}</span></div><b>${l.disp}</b>
+          ${ls.map(l => { const d = S.animais[l.doador]; return `<div class="item" style="padding:8px 0"><div class="m">${d ? linkAn(d.id, 'Doador') : '?'} <span class="mut">· ${codLote(l.id)} · safra ${esc(d ? d.safra : '')} · coleta ${fData(l.data)}${l.cor ? ' · ' + esc(l.cor) : ''}</span></div><b>${l.disp}</b>
             <button class="btn sec sm noprint" onclick="acaoLote('${l.id}')">⋯</button></div>`; }).join('')}</div>`;
       }).join('')}</div>`).join('') || '<div class="alert">Nenhum botijão cadastrado. Vá em Mais → Botijões e canecas.</div>'}
     <h3>Histórico mensal</h3><div class="card"><table><tr><th>Mês</th><th>Doses coletadas</th><th>Baixas</th></tr>${Object.keys(mes).sort().reverse().map(m => `<tr><td>${m.split('-').reverse().join('/')}</td><td>${mes[m][0]}</td><td>${mes[m][1]}</td></tr>`).join('') || '<tr><td colspan="3" class="mut">Sem movimentação.</td></tr>'}</table></div>`;
 }
 function acaoLote(id) {
   const l = S.lotes[id], d = S.animais[l.doador], c = S.canecas[l.caneca] || {};
-  $('main').innerHTML = `<h2>Lote de sêmen</h2><div class="card">
+  $('main').innerHTML = `<h2>Lote de sêmen ${codLote(id)}</h2><div class="card">
     <div>Doador ${d ? linkAn(d.id) : '?'} · coleta ${fData(l.data)}</div><div class="mut">Botijão ${esc(c.botijao)} / Caneca ${esc(c.caneca)} · <b>${l.disp}</b> de ${l.ini} doses</div>
     <h3>Descartar doses</h3><div class="grid2">${campo('dQtd', 'Quantidade', 'n')}${campo('dMot', 'Motivo')}</div>
     <div style="height:10px"></div><button class="btn sec w" onclick="try{lancar([ev('descartar_doses',{lote:'${id}',qtd:v('dQtd'),motivo:v('dMot'),data:hoje()})]);toast('Baixa registrada.','ok');ir('semen')}catch(e){toast(e.message,'err')}">Registrar descarte</button>
@@ -773,7 +812,7 @@ function telaMais() {
 
   const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ...(user.perfil === 'Administrador' || !cfg.url ? [['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)']] : []), ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['cruzamento', 'Simular cruzamento', 'Parentesco entre macho e fêmea e endogamia esperada do filho'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ...(user.perfil === 'Administrador' ? [['usuarios', 'Pessoas e PINs', 'Quem pode entrar no sistema, com qual perfil, e acesso à planilha']] : []), ...(user.token ? [['meupin', 'Trocar meu PIN', 'Precisa de internet']] : []), ['pendencias', 'Sincronização e pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)' + (erroSync ? ' · último envio falhou' : '')], ['config', 'Configurações', 'Nome do sistema, servidor, usuário'], ['sair', 'Sair', 'Encerrar a sessão neste aparelho']];
   $('main').innerHTML = `<h2>Mais</h2><div class="card" style="padding:4px 12px">${it.map(([k, t, s]) => `<div class="item" onclick="${k === 'excel' ? 'exportarExcel()' : `ir('${k}')`}"><div class="m"><b>${t}</b><div class="s">${s}</div></div><span>›</span></div>`).join('')}</div>
-    <p class="mut">Usuário: <b>${esc(user.nome)}</b> (${esc(user.perfil)}) · <a class="lk" onclick="ir('sair')">Sair</a></p>
+    <p class="mut">Usuário: <b>${esc(user.nome)}</b> (${esc(user.perfil)}) · <a class="lk" onclick="ir('sair')">Sair</a></p>${user.perfil === 'Administrador' && situacaoBackup() ? `<p class="mut" style="${situacaoBackup().ruim ? 'color:var(--err)' : ''}">${esc(situacaoBackup().txt)}</p>` : ''}
     <p class="mut" style="text-align:center;font-size:12px;margin-top:18px">Linhagem · versão ${VERSAO}${cfg.url ? '' : ' · modo demonstração'}</p>`;
 }
 function ocupacao() {
@@ -1138,14 +1177,14 @@ async function exportarExcel() {
         .concat(Object.values(S.animais).sort((a, b) => a.chip.localeCompare(b.chip)).map(a => [a.chip, a.chipsAnt.join('; '), SEXO[a.sexo] || a.sexo, a.safra, a.status, vc(a.viveiro), ch(a.pai), ch(a.mae), a.classe, a.razaoPai, a.razaoMae, filhos[a.id] || 0, ult[a.id] ? ult[a.id].dados.peso : '', ult[a.id] ? String(ult[a.id].data).slice(0, 10) : '', dosesDisp[a.id] || 0, Math.round(endogamia(S, a.id, calcF) * 10000) / 100, a.pai || a.mae ? '' : (a.origemPais || 'Não informado')])),
       Viveiros: (() => { const oc = ocupacao(); return [['Código', 'Nome', 'Tipo', 'Situação', 'Capacidade (animais)', 'Animais hoje', 'Machos', 'Fêmeas', 'Indefinidos', 'Biomassa estimada (kg)']]
         .concat(Object.values(S.viveiros).map(v => { const o = oc[v.id]; return [v.codigo, v.nome, v.tipo, v.status, v.cap == null ? '' : v.cap, o.n, o.M, o.F, o.I, Math.round(o.kg * 10) / 10]; })); })(),
-      Biometrias: [['Data', 'Chip', 'Peso (g)', 'Comp. total (cm)', 'Comp. padrão (cm)', 'Altura (cm)', 'Fator K', 'Ganho desde a anterior (g)', 'Responsável']]
-        .concat(S.atividades.filter(a => a.tipo === 'Biometria').map(a => [String(a.data).slice(0, 10), ch(a.animal), a.dados.peso, a.dados.ct ?? '', a.dados.cp ?? '', a.dados.altura ?? '', a.dados.k ?? '', a.dados.ganho ?? '', a.user])),
-      'Estoque sêmen': [['Doador (chip)', 'Safra do doador', 'Data coleta', 'Botijão', 'Caneca', 'Cor palheta', 'Doses coletadas', 'Doses disponíveis', 'Status']]
-        .concat(Object.values(S.lotes).map(l => { const c = S.canecas[l.caneca] || {}, d = S.animais[l.doador] || {}; return [ch(l.doador), d.safra || '', String(l.data).slice(0, 10), c.botijao || '', c.caneca || '', l.cor, l.ini, l.disp, l.status]; })),
+      Biometrias: [['Data', 'Chip', 'Peso (g)', 'Comp. total (cm)', 'Comp. padrão (cm)', 'Altura (cm)', 'Fator K', 'Base do K', 'Ganho desde a anterior (g)', 'Responsável']]
+        .concat(S.atividades.filter(a => a.tipo === 'Biometria').map(a => [String(a.data).slice(0, 10), ch(a.animal), a.dados.peso, a.dados.ct ?? '', a.dados.cp ?? '', a.dados.altura ?? '', a.dados.k ?? '', a.dados.k == null ? '' : a.dados.cp ? 'CP (comp. padrão)' : 'CT (comp. total)', a.dados.ganho ?? '', a.user])),
+      'Estoque sêmen': [['Lote', 'Doador (chip)', 'Safra do doador', 'Data coleta', 'Botijão', 'Caneca', 'Cor palheta', 'Doses coletadas', 'Doses disponíveis', 'Status']]
+        .concat(Object.values(S.lotes).map(l => { const c = S.canecas[l.caneca] || {}, d = S.animais[l.doador] || {}; return [codLote(l.id), ch(l.doador), d.safra || '', String(l.data).slice(0, 10), c.botijao || '', c.caneca || '', l.cor, l.ini, l.disp, l.status]; })),
       'Todos os manejos': [['Data', 'Chip', 'Tipo', 'Resumo', 'Viveiro origem', 'Viveiro destino', 'Responsável', 'Observações']]
         .concat(S.atividades.slice().sort((a, b) => String(a.data).localeCompare(String(b.data))).map(a => [String(a.data).slice(0, 10), ch(a.animal), a.tipo, a.resumo, vc(a.origem), vc(a.destino), a.user, a.obs])),
-      Fertilizações: [['Data', 'Fêmea (chip)', 'Peso da desova (g)', 'Fecundidade (ovócitos/g)', 'Protocolo', 'Sêmen', 'Doador (chip)', 'Data da coleta do lote', 'Botijão', 'Caneca', 'Doses usadas', 'Responsável']]
-        .concat(S.atividades.filter(a => a.tipo === 'Coleta de ovócitos' && a.dados.destinoDesova === 'Fertilização' && !a.anulada).map(a => { const l = S.lotes[a.dados.lote], c = l ? S.canecas[l.caneca] || {} : {}; return [String(a.data).slice(0, 10), ch(a.animal), a.dados.pesoDesova ?? '', a.dados.fecundidade ?? '', a.dados.protocolo || '', a.dados.lote ? 'Congelado' : 'Fresco', ch(a.dados.macho), l ? String(l.data).slice(0, 10) : '', c.botijao || '', c.caneca || '', a.dados.dosesUsadas || '', a.user]; })),
+      Fertilizações: [['Data', 'Fêmea (chip)', 'Peso da desova (g)', 'Fecundidade (ovócitos/g)', 'Protocolo', 'Sêmen', 'Lote', 'Doador (chip)', 'Data da coleta do lote', 'Botijão', 'Caneca', 'Doses usadas', 'Responsável']]
+        .concat(S.atividades.filter(a => a.tipo === 'Coleta de ovócitos' && a.dados.destinoDesova === 'Fertilização' && !a.anulada).map(a => { const l = S.lotes[a.dados.lote], c = l ? S.canecas[l.caneca] || {} : {}; return [String(a.data).slice(0, 10), ch(a.animal), a.dados.pesoDesova ?? '', a.dados.fecundidade ?? '', a.dados.protocolo || '', a.dados.lote ? 'Congelado' : 'Fresco', codLote(a.dados.lote), ch(a.dados.macho), l ? String(l.data).slice(0, 10) : '', c.botijao || '', c.caneca || '', a.dados.dosesUsadas || '', a.user]; })),
       Movimentações: [['Data', 'Chip', 'De', 'Para', 'Motivo', 'Responsável']]
         .concat(S.movs.map(m => [String(m.data).slice(0, 10), ch(m.animal), vc(m.origem), vc(m.destino), m.motivo, m.user])),
       Sugestões: [['Data', 'Usuário', 'Tipo', 'Tela', 'Texto', 'Status', 'Resposta']]
@@ -1230,20 +1269,43 @@ function telaPendencias() {
   const pend = fila.slice().reverse(), comErro = fila.filter(e => e._erro).length;
   $('main').innerHTML = `<h2>Sincronização e pendências</h2>
     <div class="card">
-      <div class="kpis" style="margin:0 0 10px"><div class="kpi"><b>${fila.length}</b><span>aguardando envio</span></div><div class="kpi"><b>${recusados.length}</b><span>recusados</span></div></div>
-      ${!cfg.url ? '<div class="alert" style="margin:0 0 8px"><b>Modo demonstração:</b> não há servidor configurado. Tudo fica só neste aparelho e nada é enviado.</div>' : `<p class="mut" style="margin:0 0 6px">Última sincronização: <b>${hora}</b> · ${navigator.onLine ? 'com internet' : '<b>sem internet agora</b>'}</p>`}
-      ${erroSync ? `<div class="alert err" style="margin:8px 0"><b>O último envio falhou</b> (${new Date(erroSync.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}): ${esc(erroSync.msg)}<br>${esc(oQueFazer(erroSync.msg))}</div>` : ''}
-      <button class="btn w ${fila.length ? 'acc' : 'sec'}" onclick="sincronizar(true).then(()=>{if(tela==='pendencias')telaPendencias()})">⟳ Sincronizar agora</button>
-      <p class="mut" style="margin:8px 0 0">Nada se perde: o que não foi enviado fica guardado neste aparelho e vai sozinho quando houver internet. Não use "Sair e apagar os dados" com lançamentos aguardando envio.</p>
+      ${!cfg.url ? `<div class="kpis" style="margin:0 0 10px"><div class="kpi"><b>${fila.length}</b><span>registros neste aparelho</span></div></div>
+      <div class="alert" style="margin:0"><b>Modo demonstração:</b> não há servidor configurado. Os registros ficam só neste aparelho e nada é enviado. Para usar com a equipe, abra o link de acesso que o administrador enviou por e-mail.</div>` : `<div class="kpis" style="margin:0 0 10px"><div class="kpi"><b>${fila.length}</b><span>aguardando envio</span></div><div class="kpi"><b>${recusados.length}</b><span>recusados</span></div></div>
+      ${avisoRelogio()}<p class="mut" style="margin:0 0 6px">Última sincronização: <b>${hora}</b> · ${navigator.onLine ? 'com internet' : '<b>sem internet agora</b>'}</p>${situacaoBackup() ? `<p class="mut" style="margin:0 0 6px;${situacaoBackup().ruim ? 'color:var(--err)' : ''}">${esc(situacaoBackup().txt)}</p>` : ''}`}
+      ${cfg.url && erroSync ? `<div class="alert err" style="margin:8px 0"><b>O último envio falhou</b> (${new Date(erroSync.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}): ${esc(erroSync.msg)}<br>${esc(oQueFazer(erroSync.msg))}</div>` : ''}
+      ${cfg.url ? `<button class="btn w ${fila.length ? 'acc' : 'sec'}" onclick="sincronizar(true).then(()=>{if(tela==='pendencias')telaPendencias()})">⟳ Sincronizar agora</button>
+      <p class="mut" style="margin:8px 0 0">Nada se perde: o que não foi enviado fica guardado neste aparelho e vai sozinho quando houver internet. Não use "Sair e apagar os dados" com lançamentos aguardando envio.</p>` : ''}
     </div>
-    <h3>Aguardando envio (${fila.length})</h3>
-    <div class="card" style="padding:4px 12px">${pend.slice(0, 80).map(e => { const d = descrever(e); return `<div class="item" style="cursor:default"><div class="m"><b>${esc(d.nome)}</b>${d.chip ? ' <span class="mono">…' + esc(d.chip.slice(-6)) + '</span>' : ''}<div class="s">Feito em ${new Date(e.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${e.user ? ' · ' + esc(e.user) : ''}</div>${e._erro ? `<div class="alert err" style="margin:6px 0 0">Não confere com os dados atuais: ${esc(e._erro)}<br>${esc(oQueFazer(e._erro))}</div>` : ''}</div></div>`; }).join('') || '<p class="mut">Tudo enviado.</p>'}${fila.length > 80 ? `<p class="mut">… e mais ${fila.length - 80}.</p>` : ''}</div>
+    <h3>${cfg.url ? 'Aguardando envio' : 'Registros neste aparelho'} (${fila.length})</h3>
+    <div class="card" style="padding:4px 12px">${pend.slice(0, 80).map(e => { const d = descrever(e); return `<div class="item" style="cursor:default"><div class="m"><b>${esc(d.nome)}</b>${d.chip ? ' <span class="mono">…' + esc(d.chip.slice(-6)) + '</span>' : ''}<div class="s">Feito em ${new Date(e.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${e.user ? ' · ' + esc(e.user) : ''}</div>${e._erro ? `<div class="alert err" style="margin:6px 0 0">Não confere com os dados atuais: ${esc(e._erro)}<br>${esc(oQueFazer(e._erro))}</div>` : ''}</div></div>`; }).join('') || (cfg.url ? '<p class="mut">Tudo enviado.</p>' : '<p class="mut">Nenhum registro.</p>')}${fila.length > 80 ? `<p class="mut">… e mais ${fila.length - 80}.</p>` : ''}</div>
     ${comErro ? `<p class="mut">${comErro} lançamento(s) aguardando não conferem mais com os dados (alguém mudou algo antes). Ao sincronizar, o servidor decide; se recusar, aparecem abaixo.</p>` : ''}
-    <h3>Recusados pelo servidor (${recusados.length})</h3>
+    ${cfg.url ? `<h3>Recusados pelo servidor (${recusados.length})</h3>
     <div class="card" style="padding:4px 12px">${recusados.slice(0, 50).map((e, i) => { const d = descrever(e); return `<div class="item" style="cursor:default;align-items:flex-start"><div class="m"><b>${esc(d.nome)}</b>${d.chip ? ' <span class="mono">' + esc(d.chip) + '</span>' : ''}<div class="s">Feito em ${new Date(e.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · recusado em ${new Date(e.em || e.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
       <div class="alert err" style="margin:6px 0"><b>Motivo:</b> ${esc(e.erro)}</div><div style="font-size:14px;margin-bottom:6px"><b>O que fazer:</b> ${esc(oQueFazer(e.erro))}</div>
-      <div class="chips noprint">${d.animal && S.animais[d.animal] ? `<button class="chip" onclick="ir('ficha','${esc(d.animal)}')">Abrir ficha</button>` : ''}<button class="chip" onclick="relatarRecusa(${i})">Relatar</button><button class="chip" onclick="if(confirm('Descartar este lançamento recusado? Ele não será enviado.')){recusados.splice(${i},1);salvarLocal();telaPendencias()}">Descartar</button></div></div></div>`; }).join('') || '<p class="mut">Nenhum. Quando o servidor recusa algo, aparece aqui com o motivo e o que fazer.</p>'}</div>
-    ${recusados.length > 1 ? `<button class="btn sec w" onclick="if(confirm('Descartar todos os recusados?')){recusados=[];salvarLocal();telaPendencias()}">Descartar todos os recusados</button>` : ''}`;
+      <div class="chips noprint">${e.tipo === 'atividade' && S.animais[(e.p || {}).animal] ? `<button class="chip on" onclick="corrigirRecusa(${i})">Corrigir e reenviar</button>` : ''}<button class="chip" onclick="reenviarRecusa(${i})">Reenviar como está</button>${d.animal && S.animais[d.animal] ? `<button class="chip" onclick="ir('ficha','${esc(d.animal)}')">Abrir ficha</button>` : ''}<button class="chip" onclick="relatarRecusa(${i})">Relatar</button><button class="chip" onclick="if(confirm('Descartar este lançamento recusado? Ele não será enviado.')){recusados.splice(${i},1);salvarLocal();telaPendencias()}">Descartar</button></div></div></div>`; }).join('') || '<p class="mut">Nenhum. Quando o servidor recusa algo, aparece aqui com o motivo e o que fazer.</p>'}</div>
+    ${recusados.length > 1 ? `<button class="btn sec w" onclick="if(confirm('Descartar todos os recusados?')){recusados=[];salvarLocal();telaPendencias()}">Descartar todos os recusados</button>` : ''}` : ''}`;
+}
+// volta um recusado para a fila sem mudar nada (ex.: o problema era a ordem dos envios e já foi resolvido)
+function reenviarRecusa(i) {
+  const e = recusados[i]; if (!e) return;
+  const c = { ...e }; delete c.erro; delete c.em; delete c._erro;
+  try { const t = clone(S); aplicar(t, c); } catch (x) { return toast('Ainda não confere com os dados: ' + x.message + '. Use "Corrigir e reenviar".', 'err'); }
+  recusados.splice(i, 1); lancar([c]).then(() => { toast('Reenviando…', 'ok'); telaPendencias(); });
+}
+// abre o lançamento com os mesmos dados para corrigir; ao salvar, o recusado sai da lista
+const CAMPOS_CORRIGIR = { Biometria: { bPeso: 'peso', bCT: 'ct', bCP: 'cp', bAlt: 'altura' }, 'Coleta de sêmen': { sDoses: 'doses', sVol: 'volume', sMot: 'motilidade', sVig: 'vigor', sConc: 'conc', sDil: 'diluidor', sVolD: 'volDose', sCor: 'cor', sCan: 'caneca' }, 'Coleta de ovócitos': { oProt: 'protocolo', oPeso: 'pesoDesova', oFec: 'fecundidade', oQual: 'qualidade', oDest: 'destinoDesova', oLote: 'lote', oDoses: 'dosesUsadas', oMacho: 'macho' }, Rechipagem: { rChip: 'novoChip', rMot: 'motivo' }, 'Outro manejo': { xDet: 'detalhe' } };
+function corrigirRecusa(i) {
+  const e = recusados[i], p = e.p || {}, d = p.dados || {};
+  L.sub = p.sub; if (p.sub === 'Outro manejo') L.outro = d.qual; L.mudou = !!p.mudou; if (p.destino) L.destino = p.destino; guardar();
+  ir('lancar'); animalSel = p.animal; L.data = String(p.data || hoje()).slice(0, 10); telaLancar();
+  window.__corrigindo = i;
+  setTimeout(() => {
+    const m = CAMPOS_CORRIGIR[p.sub] || {};
+    Object.keys(m).forEach(id => { const el = $(id); if (el && d[m[id]] != null && d[m[id]] !== '') { el.value = d[m[id]]; el.dispatchEvent(new Event('change')); } });
+    if ($('fObs') && p.obs) $('fObs').value = p.obs;
+    if (p.sub === 'Coleta de ovócitos' && d.macho && !d.lote && typeof tipoSemen === 'function') { tipoSemen('F'); if ($('oMacho')) $('oMacho').value = d.macho; }
+    toast('Corrija o que for preciso e salve. Motivo da recusa: ' + e.erro, 'err');
+  }, 120);
 }
 function relatarRecusa(i) {
   const e = recusados[i], d = descrever(e);
@@ -1275,7 +1337,7 @@ function telaCruzamento() {
 
 // ===================== Trocar meu PIN =====================
 function telaMeuPin() {
-  $('main').innerHTML = `<h2>${user.trocarPin ? 'Crie o seu PIN' : 'Trocar meu PIN'}</h2>${user.trocarPin ? '<div class="alert">Você entrou com um PIN provisório. Crie agora um PIN só seu para continuar.</div>' : ''}<div class="card">
+  $('main').innerHTML = `<h2>${user.trocarPin ? 'Crie o seu PIN' : 'Trocar meu PIN'}</h2>${user.trocarPin ? '<div class="alert">Você entrou com um PIN provisório (ou com menos de 6 números). Crie agora um PIN só seu, de 6 a 8 números, para continuar.</div>' : ''}<div class="card">
     ${user.trocarPin && window.__pinProv ? '<input id="pA" type="hidden" value="' + esc(window.__pinProv) + '">' : `<label style="margin-top:0">${user.trocarPin ? 'PIN provisório que você recebeu' : 'PIN atual'}</label><input id="pA" type="password" inputmode="numeric">`}
     <label>PIN novo (6 a 8 números)</label><input id="pN" type="password" inputmode="numeric">
     <label>Repita o PIN novo</label><input id="pN2" type="password" inputmode="numeric">
@@ -1413,7 +1475,28 @@ function mudarSug(id, st) { try { lancar([ev('sugestao_status', { id, status: st
     if (q.get('s')) { cfg.url = q.get('s'); cfg.chave = q.get('k') || cfg.chave; LS.set('cfg', cfg); history.replaceState(null, '', location.pathname); }
   } catch (e) {}
 })();
+// Uma janela só: duas janelas abertas (app instalado + navegador) poderiam sobrescrever a fila uma da outra
+(function () {
+  try {
+    const bc = new BroadcastChannel('linhagem'), eu = uid();
+    bc.onmessage = m => {
+      const d = m.data || {};
+      if (d.id === eu) return;
+      if (d.t === 'ola' && !janelaBloqueada) bc.postMessage({ t: 'estou', id: eu });
+      if (d.t === 'estou' || d.t === 'assumir') bloquearJanela(d.t === 'assumir');
+    };
+    bc.postMessage({ t: 'ola', id: eu });
+    window.__assumir = () => { bc.postMessage({ t: 'assumir', id: eu }); setTimeout(() => location.reload(), 150); };
+  } catch (e) {}
+})();
+function bloquearJanela(tomada) {
+  janelaBloqueada = true;
+  document.querySelectorAll('.modal,.toast').forEach(x => x.remove());
+  $('main').innerHTML = `<div class="card" style="margin-top:30px;text-align:center"><h2>O Linhagem está aberto em outra janela</h2><p class="mut">${tomada ? 'Ele passou a ser usado na outra janela.' : 'Para não misturar os lançamentos guardados no aparelho, use uma janela só.'}</p><button class="btn acc w" onclick="window.__assumir()">Usar nesta janela</button></div>`;
+  $('nav').innerHTML = '';
+}
 carregarArmazenamento().then(() => {
+  if (janelaBloqueada) return;
   recalcular();
   render();
   sincronizar();

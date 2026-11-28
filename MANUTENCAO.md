@@ -15,9 +15,17 @@
 4. Publique o app: envie para o GitHub (o GitHub Pages atualiza em cerca de 1 minuto).
 5. Se `regras.js` ou `servidor.js` mudaram: no editor do Apps Script, cole o novo `Code.gs` (mantendo o `PLANILHA_ID` e a chave), salve e vá em **Implantar → Gerenciar implantações → Editar → Nova versão → Implantar**. O endereço do servidor não muda.
 
-## Recuperação
-- **Backup diário automático** na pasta `Linhagem/Backups` do Google Drive, com os últimos 30 dias. Para restaurar, copie a aba desejada do backup para a planilha.
-- **Reconstrução pelo registro de eventos:** no editor do Apps Script, rode a função `reconstruirDosEventos`. Ela refaz todas as abas a partir da aba Eventos.
+## Backups e recuperação
+- **Backup diário automático** na pasta `Linhagem/Backups` do Google Drive, com os últimos 30 dias, e uma cópia em Excel por e-mail aos administradores uma vez por mês.
+- **Saber se o backup está em dia:** o administrador vê "Último backup no Drive" em **Mais** e em **Sincronização e pendências**. Se o backup falhar ou passar de 2 dias, aparece um aviso vermelho na tela inicial e o administrador recebe um e-mail.
+- **Restaurar um backup** (volta os dados para o dia escolhido; pessoas e PINs ficam como estão hoje):
+  1. No editor do Apps Script, escolha a função `listarBackups` e clique em **Executar**. Em **Registro de execução** aparece a lista: nome do backup → ID do arquivo.
+  2. Copie o ID do backup desejado. No editor, crie temporariamente no fim do código: `function restaurarAgora() { restaurarBackup('COLE_O_ID_AQUI'); }`, salve, escolha `restaurarAgora` e clique em **Executar**.
+  3. Antes de restaurar, o sistema guarda o estado atual na pasta Backups ("antes de restaurar"); se escolher o dia errado, dá para voltar.
+  4. Apague a função temporária e salve. Os celulares recebem os dados restaurados na próxima sincronização.
+- **"Começar do zero"** (Mais → Importar dados) só apaga se conseguir fazer a cópia de segurança antes. O registro de Eventos nunca é apagado: entra uma marca de limpeza, e o que veio antes dela deixa de valer.
+- **Reconstrução pelo registro de eventos:** se uma gravação for interrompida, o próximo envio refaz as abas sozinho. Também dá para rodar `reconstruirDosEventos` no editor.
+- **Teste de restauração:** faça uma vez por semestre. Restaure o backup de ontem, confira no app a contagem de animais e de doses e, se estiver tudo certo, volte ao backup "antes de restaurar".
 
 ## Transferir para a conta do laboratório
 1. **Planilha e servidor:** no Google Drive, compartilhe a pasta `Linhagem` com a conta do laboratório como Editor. Depois, em cada arquivo (planilha e projeto "Linhagem — Servidor"), vá em **Compartilhar → transferir propriedade**. O servidor precisa ser implantado de novo pela nova dona (Implantar → Nova implantação). O endereço muda, e é preciso reenviar o link de configuração aos celulares.

@@ -3,7 +3,7 @@ var INATIVOS = ['Óbito', 'Descartado', 'Transferido'];
 var VIVEIRO_BLOQ = ['Inativo', 'Vazio sanitário'];
 var BAIXAS = { 'Óbito': 'Óbito', 'Descarte': 'Descartado', 'Transferência externa': 'Transferido' };
 
-// PIN: só números, de 6 a 8 dígitos (PINs antigos de 4 ou 5 continuam entrando, mas o novo precisa ter 6+)
+// PIN: só números, de 6 a 8 dígitos (PINs antigos de 4 ou 5 ainda entram, mas o app obriga a trocar por um de 6+)
 var PIN_RE = /^\d{6,8}$/;
 // tipos de lançamento que só o administrador faz
 var SO_ADMIN = { viveiro: 1, caneca: 1, editar_animal: 1, sugestao_status: 1 };
@@ -19,6 +19,16 @@ function podeLancar(perfil, ev) {
   if (ev.p && (ev.p.importado || ev.p.obs === 'importado')) return 'Só o administrador pode importar planilhas.';
   return '';
 }
+
+// data do lançamento no futuro (mais de ~1 dia à frente do relógio de quem confere): recusa. Devolve '' se está ok.
+function dataFutura(ev) {
+  var p = (ev && ev.p) || {}, d = String(p.data || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return '';
+  var lim = new Date(Date.now() + 36 * 3600e3).toISOString().slice(0, 10);
+  return d > lim ? 'A data ' + d.split('-').reverse().join('/') + ' está no futuro. Confira a data do lançamento e o relógio do celular.' : '';
+}
+// código curto e legível do lote de sêmen (o mesmo no app, na planilha e no Excel)
+function codLote(id) { return id ? 'L-' + String(id).slice(-6).toUpperCase() : ''; }
 
 // rótulo de caneca sem repetir o "B" quando o botijão já se chama "B1"
 function rotCan(c) { if (!c) return '—'; var b = String(c.botijao || ''); return (/^\d/.test(b) ? 'B' + b : b) + '/C' + c.caneca; }

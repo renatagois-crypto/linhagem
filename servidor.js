@@ -69,7 +69,12 @@ function carregar() {
   });
   linhas('Movimentacoes').forEach(function (r) { s.movs.push({ id: r.id, animal: r.animal_id, data: r.data, origem: r.origem_id, destino: r.destino_id, motivo: r.motivo, user: r.responsavel }); });
   linhas('Sugestoes').forEach(function (r) { s.sugestoes.push({ id: r.id, data: r.data, user: r.usuario, tipo: r.tipo, tela: r.tela, texto: r.texto, status: r.status, resposta: r.resposta }); });
-  linhas('Eventos').forEach(function (r) { if (r.resultado === 'ok') s.usados[r.uid] = 1; });
+  // eventos já aceitos (para não aplicar duas vezes um reenvio): lê só as colunas uid e resultado, não o registro inteiro
+  var she = planilha().getSheetByName('Eventos');
+  if (she && she.getLastRow() > 1) {
+    var nE = she.getLastRow() - 1, us = she.getRange(2, 1, nE, 1).getDisplayValues(), rs = she.getRange(2, 6, nE, 1).getDisplayValues();
+    for (var i = 0; i < nE; i++) if (rs[i][0] === 'ok') s.usados[us[i][0]] = 1;
+  }
   s.atividades.forEach(function (a) { s.usados[a.id] = 1; });
   Object.keys(s.lotes).forEach(function (k) { s.usados[k] = 1; });
   s.sugestoes.forEach(function (x) { s.usados[x.id] = 1; });
@@ -125,7 +130,9 @@ function salvar(s, nAtiv, nMov) {
 
 // ----- Registro de eventos: é a fonte da verdade. Daqui dá para refazer todas as abas. -----
 function eventosOk() {
-  return linhas('Eventos').filter(function (r) { return r.resultado === 'ok' && r.tipo !== 'usuario'; }).map(function (r) {
+  var rs = linhas('Eventos'), corte = -1;
+  rs.forEach(function (r, i) { if (r.tipo === 'limpeza') corte = i; }); // "Começar do zero": o que veio antes deixa de valer (o registro nunca é apagado)
+  return rs.filter(function (r, i) { return r.resultado === 'ok' && r.tipo !== 'usuario' && (i > corte || r.tipo === 'sugestao' || r.tipo === 'sugestao_status'); }).map(function (r) {
     var p = {}; try { p = JSON.parse(r.json || '{}'); } catch (e) {}
     return { uid: r.uid, tipo: r.tipo, ts: r.registrado_em, user: r.usuario, p: p };
   });
@@ -158,7 +165,8 @@ function resposta(o) { return ContentService.createTextOutput(JSON.stringify(o))
 
 function checarChave(k) {
   var chave = PropertiesService.getScriptProperties().getProperty('CHAVE');
-  if (chave && k !== chave) throw new Error('Chave do sistema incorreta.');
+  if (!chave) throw new Error('Servidor sem chave do sistema configurada. Quem mantém o sistema precisa definir a CHAVE nas propriedades do script.');
+  if (k !== chave) throw new Error('Chave do sistema incorreta.');
 }
 
 function usuarios() { return linhas('Usuarios').filter(function (u) { return u.nome && u.ativo !== 'Não'; }); }
@@ -206,10 +214,18 @@ function autenticar(body) {
   }
   var us = usuarios(), u = acharUsuario(us, body.user);
   var cache = CacheService.getScriptCache(), k = 'falhas_' + (u ? chaveNome(u.nome) : chaveNome(body.user).replace(/\s/g, '')), n = parseInt(cache.get(k) || '0', 10);
+  // bloqueio progressivo: 5 erros seguidos = 15 min; 10 erros em 6 h = 6 h (e o administrador recebe um aviso)
+  var k6 = k.replace('falhas_', 'falhas6_'), n6 = parseInt(cache.get(k6) || '0', 10);
+  if (n6 >= 10) throw new Error('Muitas tentativas com PIN errado. Acesso bloqueado por algumas horas; peça ao administrador para conferir.');
   if (n >= 5) throw new Error('Muitas tentativas com PIN errado. Aguarde 15 minutos.');
-  if (!u || u.pin_hash !== hashPin(u.nome, body.pin)) { cache.put(k, String(n + 1), 900); throw new Error('Usuário ou PIN inválido.'); }
-  cache.remove(k);
-  return { nome: u.nome, perfil: u.perfil || 'Técnico', email: u.email || '', trocarPin: u.pin_provisorio === 'Sim', pin_hash: u.pin_hash };
+  if (!u || u.pin_hash !== hashPin(u.nome, body.pin)) {
+    cache.put(k, String(n + 1), 900); cache.put(k6, String(n6 + 1), 21600);
+    if (n6 + 1 === 10) { try { avisarAdmin('Linhagem — acesso bloqueado', '10 tentativas com PIN errado para "' + (u ? u.nome : body.user) + '" nas últimas horas. O acesso dessa pessoa ficou bloqueado por 6 horas. Se não foi ela, troque o PIN dela em Mais → Pessoas e PINs.'); } catch (e) {} }
+    throw new Error('Usuário ou PIN inválido.');
+  }
+  cache.remove(k); cache.remove(k6);
+  // PIN antigo curto (4 ou 5 números) ainda entra, mas obriga a trocar por um de 6 a 8
+  return { nome: u.nome, perfil: u.perfil || 'Técnico', email: u.email || '', trocarPin: u.pin_provisorio === 'Sim' || !PIN_RE.test(String(body.pin || '')), pin_hash: u.pin_hash };
 }
 function salvarUsuario(d, quem, primeiro) {
   if (!d.nome || !String(d.nome).trim()) throw new Error('Informe o nome.');
@@ -288,19 +304,67 @@ function trocarMeuPin(u, d) {
 }
 function listaUsuarios() { return linhas('Usuarios').map(function (u) { return { nome: u.nome, email: u.email || '', perfil: u.perfil, ativo: u.ativo !== 'Não' }; }); }
 
+// ----- backups -----
+function pastaProjeto() {
+  var pr = PropertiesService.getScriptProperties();
+  if (pr.getProperty('PASTA_ID')) { try { return DriveApp.getFolderById(pr.getProperty('PASTA_ID')); } catch (e) {} }
+  var it = DriveApp.getRootFolder().getFoldersByName('Linhagem'), pasta = it.hasNext() ? it.next() : DriveApp.getRootFolder().createFolder('Linhagem');
+  pr.setProperty('PASTA_ID', pasta.getId());
+  try { DriveApp.getFileById(planilha().getId()).moveTo(pasta); } catch (e) {}
+  return pasta;
+}
+function pastaBackups() { var p = pastaProjeto(), it = p.getFoldersByName('Backups'); return it.hasNext() ? it.next() : p.createFolder('Backups'); }
+// cópia da planilha inteira na pasta Linhagem/Backups. Se falhar, LANÇA ERRO (quem chama decide se pode seguir sem cópia)
+function copiaSeguranca(rotulo) {
+  var nome = 'Linhagem — ' + rotulo + ' ' + Utilities.formatDate(new Date(), 'America/Cuiaba', 'yyyy-MM-dd HH:mm');
+  var f = DriveApp.getFileById(planilha().getId()).makeCopy(nome, pastaBackups());
+  if (!f) throw new Error('A cópia de segurança não foi criada.');
+  PropertiesService.getScriptProperties().setProperty('ULTIMO_BACKUP_OK', new Date().toISOString());
+  return f;
+}
+function emailsAdmin() { return usuarios().filter(function (u) { return u.perfil === 'Administrador' && u.email; }).map(function (u) { return u.email; }); }
+function avisarAdmin(assunto, texto) { var para = emailsAdmin(); if (para.length) MailApp.sendEmail({ to: para.join(','), subject: assunto, body: texto, name: 'Linhagem' }); }
+function situacaoBackup() {
+  var pr = PropertiesService.getScriptProperties(), e = pr.getProperty('ULTIMO_BACKUP_ERRO');
+  return { ok: pr.getProperty('ULTIMO_BACKUP_OK') || '', erro: e ? JSON.parse(e) : null };
+}
+// Para o dono rodar no editor do Apps Script: lista os backups com o ID de cada um (veja em Execuções → Registros)
+function listarBackups() {
+  var fs = pastaBackups().getFiles(), l = [];
+  while (fs.hasNext()) { var f = fs.next(); l.push(f.getName() + '  →  ' + f.getId()); }
+  l.sort().reverse(); Logger.log(l.join('\n')); return l;
+}
+// Para o dono rodar no editor: volta todos os dados (menos pessoas e PINs) para como estavam num backup.
+// Antes, guarda uma cópia do estado atual ("antes de restaurar"). Uso: restaurarBackup('ID do arquivo de backup')
+function restaurarBackup(arquivoId) {
+  if (!arquivoId) throw new Error('Informe o ID do arquivo de backup (rode listarBackups para ver).');
+  var lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    var orig = SpreadsheetApp.openById(arquivoId);
+    copiaSeguranca('antes de restaurar');
+    var ss = planilha(), resumo = [];
+    Object.keys(ABAS).forEach(function (nome) {
+      if (nome === 'Usuarios') return; // pessoas e PINs ficam como estão hoje
+      var de = orig.getSheetByName(nome), para = ss.getSheetByName(nome) || ss.insertSheet(nome), cols = ABAS[nome].length;
+      var v = de && de.getLastRow() > 1 ? de.getRange(2, 1, de.getLastRow() - 1, cols).getDisplayValues() : [];
+      if (para.getLastRow() > 1) para.getRange(2, 1, para.getLastRow() - 1, cols).clearContent();
+      if (v.length) para.getRange(2, 1, v.length, cols).setNumberFormat('@').setValues(v);
+      resumo.push(nome + ': ' + v.length);
+    });
+    PropertiesService.getScriptProperties().deleteProperty('GRAVANDO');
+    var agora = new Date().toISOString();
+    anexar('Eventos', [[Utilities.getUuid(), agora, agora, 'sistema', 'restauracao', 'info', JSON.stringify({ de: orig.getName ? orig.getName() : arquivoId })]]);
+    var msg = 'Restaurado de "' + (orig.getName ? orig.getName() : arquivoId) + '" — ' + resumo.join(', ');
+    Logger.log(msg); return msg;
+  } finally { lock.releaseLock(); }
+}
+
 // ----- manutenção diária: pasta do projeto, backup (30 últimos dias) e cópia mensal por e-mail -----
 function manutencaoDiaria() {
   var pr = PropertiesService.getScriptProperties(), hoje = Utilities.formatDate(new Date(), 'America/Cuiaba', 'yyyy-MM-dd');
   if (pr.getProperty('ULTIMA_MANUTENCAO') === hoje) return;
   pr.setProperty('ULTIMA_MANUTENCAO', hoje); // marca antes: se algo abaixo falhar, não trava os lançamentos do dia
-  var ss = planilha(), arq = DriveApp.getFileById(ss.getId());
-  var pasta = pr.getProperty('PASTA_ID') ? DriveApp.getFolderById(pr.getProperty('PASTA_ID')) : null;
-  if (!pasta) {
-    var it = DriveApp.getRootFolder().getFoldersByName('Linhagem');
-    pasta = it.hasNext() ? it.next() : DriveApp.getRootFolder().createFolder('Linhagem');
-    pr.setProperty('PASTA_ID', pasta.getId());
-    arq.moveTo(pasta);
-  }
+  var pasta = pastaProjeto();
   // o servidor fica numa subpasta própria, que nunca é compartilhada
   if (!pr.getProperty('SCRIPT_SEPARADO')) {
     try {
@@ -315,20 +379,27 @@ function manutencaoDiaria() {
       ScriptApp.newTrigger('manutencaoDiaria').timeBased().everyDays(1).atHour(3).create();
   } catch (e) {}
   try { protegerAbas(); } catch (e) {}
-  var itB = pasta.getFoldersByName('Backups'), backups = itB.hasNext() ? itB.next() : pasta.createFolder('Backups');
-  arq.makeCopy('Linhagem — backup ' + hoje, backups);
-  var lista = [], fs = backups.getFiles();
-  while (fs.hasNext()) lista.push(fs.next());
-  lista.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
-  lista.slice(30).forEach(function (f) { f.setTrashed(true); });
+  // backup do dia: se falhar, fica registrado, o app mostra o aviso e o administrador recebe e-mail
+  try {
+    copiaSeguranca('backup');
+    pr.deleteProperty('ULTIMO_BACKUP_ERRO');
+    var backups = pastaBackups(), lista = [], fs = backups.getFiles();
+    while (fs.hasNext()) lista.push(fs.next());
+    lista.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
+    lista.slice(30).forEach(function (f) { f.setTrashed(true); });
+  } catch (eb) {
+    pr.setProperty('ULTIMO_BACKUP_ERRO', JSON.stringify({ em: new Date().toISOString(), msg: String(eb.message || eb) }));
+    try { avisarAdmin('Linhagem — o backup de hoje falhou', 'O backup automático do Linhagem falhou em ' + hoje + ': ' + (eb.message || eb) + '\n\nOs dados continuam na planilha. Confira o espaço no Google Drive. O sistema tenta de novo amanhã.'); } catch (e) {}
+  }
   // uma vez por mês: cópia em Excel por e-mail para os administradores (fica fora do Drive)
   var mes = hoje.slice(0, 7);
   if (pr.getProperty('ULTIMO_ENVIO_MES') !== mes) {
-    try { enviarCopiaMensal(); pr.setProperty('ULTIMO_ENVIO_MES', mes); } catch (e) {}
+    try { enviarCopiaMensal(); pr.setProperty('ULTIMO_ENVIO_MES', mes); }
+    catch (em) { pr.setProperty('ULTIMO_BACKUP_ERRO', JSON.stringify({ em: new Date().toISOString(), msg: 'cópia mensal por e-mail: ' + (em.message || em) })); }
   }
 }
 function enviarCopiaMensal() {
-  var para = usuarios().filter(function (u) { return u.perfil === 'Administrador' && u.email; }).map(function (u) { return u.email; });
+  var para = emailsAdmin();
   if (!para.length) return;
   var url = 'https://docs.google.com/spreadsheets/d/' + planilha().getId() + '/export?format=xlsx';
   var blob = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } }).getBlob()
@@ -342,27 +413,22 @@ function limparBase(u, d) {
   if (String(d.confirmar || '').trim().toUpperCase() !== 'APAGAR') throw new Error('Para confirmar, digite APAGAR.');
   var me = acharUsuario(usuarios(), u.nome);
   if (!me || me.pin_hash !== hashPin(me.nome, d.pin)) throw new Error('PIN incorreto.');
-  var agora = new Date().toISOString();
-  // cópia de segurança antes de apagar (pasta Linhagem/Backups)
-  try {
-    var pr = PropertiesService.getScriptProperties(), pasta = pr.getProperty('PASTA_ID') ? DriveApp.getFolderById(pr.getProperty('PASTA_ID')) : DriveApp.getRootFolder();
-    var itB = pasta.getFoldersByName('Backups'), bk = itB.hasNext() ? itB.next() : pasta.createFolder('Backups');
-    DriveApp.getFileById(planilha().getId()).makeCopy('Linhagem — antes de limpar ' + Utilities.formatDate(new Date(), 'America/Cuiaba', 'yyyy-MM-dd HH:mm'), bk);
-  } catch (e) {}
-  var manter = linhas('Eventos').filter(function (r) { return r.tipo === 'usuario' || r.tipo === 'sugestao' || r.tipo === 'sugestao_status'; });
-  ['Viveiros', 'Canecas', 'Animais', 'LotesSemen', 'Atividades', 'Movimentacoes', 'Sugestoes', 'Eventos'].forEach(function (nome) {
-    var sh = planilha().getSheetByName(nome); if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, ABAS[nome].length).clearContent();
-  });
-  ORIG = {};
-  anexar('Eventos', manter.map(function (r) { return ABAS.Eventos.map(function (c) { return r[c]; }); }).concat([[Utilities.getUuid(), agora, agora, u.nome, 'limpeza', 'info', JSON.stringify({ motivo: 'Base apagada para recomeçar (dados de teste)' })]]));
+  var agora = new Date().toISOString(), pr = PropertiesService.getScriptProperties();
+  // 1) cópia de segurança obrigatória: se não der para copiar, nada é apagado
+  try { copiaSeguranca('antes de limpar'); }
+  catch (e) { throw new Error('Não consegui fazer a cópia de segurança (' + (e.message || e) + '). Nada foi apagado. Tente de novo mais tarde.'); }
+  // 2) o registro de eventos NÃO é apagado: entra uma marca "limpeza" e o que veio antes dela deixa de valer
+  pr.setProperty('GRAVANDO', agora); // se cair no meio, o próximo envio refaz as abas a partir dos eventos
+  anexar('Eventos', [[Utilities.getUuid(), agora, agora, u.nome, 'limpeza', 'info', JSON.stringify({ motivo: 'Base apagada para recomeçar (dados de teste)' })]]);
   var s = refazer(eventosOk()).s;
   regravarTudo(s);
+  pr.deleteProperty('GRAVANDO');
   return s;
 }
 
 function foto(s) {
   delete s.usados;
-  return { estado: s, usuarios: usuarios().map(function (u) { return { nome: u.nome, perfil: u.perfil }; }), em: new Date().toISOString() };
+  return { estado: s, usuarios: usuarios().map(function (u) { return { nome: u.nome, perfil: u.perfil }; }), em: new Date().toISOString(), backup: situacaoBackup() };
 }
 
 // GET só confirma que o servidor está no ar (os dados só saem com login)
@@ -412,14 +478,18 @@ function doPost(e) {
     if (body.login) return resposta({ ok: true, nome: u.nome, perfil: u.perfil, trocarPin: !!u.trocarPin, token: novoToken(u) });
     var pr = PropertiesService.getScriptProperties();
     // gravação anterior interrompida no meio: refaz tudo a partir do registro de eventos
-    if (pr.getProperty('GRAVANDO')) { try { reconstruirDosEventos(); } catch (e3) {} pr.deleteProperty('GRAVANDO'); }
+    if (pr.getProperty('GRAVANDO')) {
+      try { reconstruirDosEventos(); }
+      catch (e3) { throw new Error('O servidor está se recuperando de uma gravação interrompida e ainda não conseguiu terminar (' + e3.message + '). Seus lançamentos continuam guardados no aparelho; tente de novo em alguns minutos.'); }
+      pr.deleteProperty('GRAVANDO');
+    }
     var s = carregar(), nA = s.atividades.length, nM = s.movs.length, res = [], log = [], agora = new Date().toISOString(), refeito = false, todos = null, aceitos = [];
     (body.eventos || []).forEach(function (ev) {
       if (Date.now() - inicio > 240000) return; // perto do limite de tempo do Google: o resto vai no próximo envio
       ev.user = u.nome;
       if (s.usados[ev.uid] || (ev.tipo === 'animal_novo' && ev.p && s.animais[ev.p.id] && log.every(function (l) { return l[0] !== ev.uid; }) && s.animais[ev.p.id].cadastro === ev.ts)) { res.push({ uid: ev.uid, ok: true }); return; } // já recebido antes (reenvio)
       try {
-        var proib = podeLancar(u.perfil, ev);
+        var proib = podeLancar(u.perfil, ev) || dataFutura(ev);
         if (proib) throw new Error(proib);
         if (ev.tipo === 'anular') {
           if (!todos) todos = eventosOk().concat(aceitos); // inclui o que já entrou neste mesmo envio
