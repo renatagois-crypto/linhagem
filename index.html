@@ -110,6 +110,7 @@ const LS = {
   set(k, v) { try { localStorage.setItem('plantel_' + k, JSON.stringify(v)); } catch (e) { toast('A memória do aparelho está cheia. Sincronize assim que possível.', 'err'); } }
 };
 // Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
+const VERSAO = '1.1 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
 const GRANDES = ['base', 'fila', 'recusados'];
 const IDB = {
   db: null,
@@ -312,7 +313,7 @@ function telaLogin() {
     <div style="height:14px"></div>
     <button class="btn w" onclick="entrar()">Entrar</button>
     <details style="margin-top:14px"><summary>Configurar servidor</summary>${formServidor()}</details>
-  </div>`;
+  </div><p class="mut" style="text-align:center;font-size:12px;margin-top:14px">Linhagem · versão ${VERSAO}</p>`;
 }
 async function entrar() {
   const nome = $('lgNome').value.trim(), pin = $('lgPin').value.trim(); let perfil = '', inicial = false, token = '', nomeSrv = '', trocar = false;
@@ -685,7 +686,8 @@ function telaMais() {
 
   const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ...(user.perfil === 'Administrador' || !cfg.url ? [['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)']] : []), ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['cruzamento', 'Simular cruzamento', 'Parentesco entre macho e fêmea e endogamia esperada do filho'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ...(user.perfil === 'Administrador' ? [['usuarios', 'Pessoas e PINs', 'Quem pode entrar no sistema, com qual perfil, e acesso à planilha']] : []), ...(user.token ? [['meupin', 'Trocar meu PIN', 'Precisa de internet']] : []), ['pendencias', 'Sincronização e pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)' + (erroSync ? ' · último envio falhou' : '')], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
   $('main').innerHTML = `<h2>Mais</h2><div class="card" style="padding:4px 12px">${it.map(([k, t, s]) => `<div class="item" onclick="${k === 'excel' ? 'exportarExcel()' : `ir('${k}')`}"><div class="m"><b>${t}</b><div class="s">${s}</div></div><span>›</span></div>`).join('')}</div>
-    <p class="mut">Usuário: <b>${esc(user.nome)}</b> · <a class="lk" onclick="ir('sair')">Sair</a></p>`;
+    <p class="mut">Usuário: <b>${esc(user.nome)}</b> (${esc(user.perfil)}) · <a class="lk" onclick="ir('sair')">Sair</a></p>
+    <p class="mut" style="text-align:center;font-size:12px;margin-top:18px">Linhagem · versão ${VERSAO}${cfg.url ? '' : ' · modo demonstração'}</p>`;
 }
 function ocupacao() {
   const r = {};
