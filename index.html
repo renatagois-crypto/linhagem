@@ -18,7 +18,7 @@ header .t{flex:1;min-width:0}
 header .t b{display:block;font-size:17px}
 header .t small{opacity:.8;font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sync{font-size:13px;padding:6px 10px;border-radius:99px;background:rgba(255,255,255,.15);white-space:nowrap;border:0;color:#fff}
-.sync{border:1px solid rgba(255,255,255,.45)!important;font-weight:600;cursor:pointer;min-height:42px}.sync.pend{background:var(--acc);border-color:var(--acc)!important}
+.sync{border:1px solid rgba(255,255,255,.45)!important;font-weight:600;cursor:pointer;min-height:42px;background:#1C8C96}.sync.pend{background:var(--acc);border-color:var(--acc)!important}.sync.erro{background:var(--err);border-color:var(--err)!important}
 .gira{display:inline-block}.gira.on{animation:gira 1s linear infinite}@keyframes gira{to{transform:rotate(360deg)}}
 .bsync{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--ln);border-radius:14px;padding:10px 12px;margin:0 0 12px}.bsync.pend{border-color:var(--acc);background:#FFF6EE}.bsync b{display:block;font-size:14px}.bsync small{color:var(--mut);font-size:13px}.bsync .btn{min-height:40px;padding:8px 12px;white-space:nowrap;width:auto}
 .sync.off{background:#6b4a2a}
@@ -126,7 +126,7 @@ const LS = {
 function cookieGuardar(k, v) { try { document.cookie = 'linhagem_' + k + '=' + encodeURIComponent(JSON.stringify(v)) + ';path=/;max-age=31536000;SameSite=Lax' + (location.protocol === 'https:' ? ';Secure' : ''); } catch (e) {} }
 function cookieLer(k) { try { const m = document.cookie.match(new RegExp('(?:^|; )linhagem_' + k + '=([^;]*)')); return m ? JSON.parse(decodeURIComponent(m[1])) : undefined; } catch (e) { return undefined; } }
 // Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
-const VERSAO = '1.4.3 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
+const VERSAO = '1.4.4 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
 const GRANDES = ['base', 'fila', 'recusados'];
 const IDB = {
   db: null,
@@ -243,7 +243,9 @@ async function sincronizar(manual) {
 function atualizarSync() {
   const b = $('syncBtn');
   const n = fila.length;
-  b.className = 'sync' + (n ? ' pend' : '') + (!navigator.onLine ? ' off' : '');
+  // cor do botão: laranja enquanto envia/atualiza ou há algo a enviar, vermelho se falhou, azul do app quando está tudo certo
+  const er = cfg.url && erroRelevante();
+  b.className = 'sync' + (sincronizando || n ? ' pend' : er ? ' erro' : '') + (!navigator.onLine && !sincronizando ? ' off' : '');
   const hora = ultimaSync ? new Date(ultimaSync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
   b.innerHTML = '<span class="gira' + (sincronizando ? ' on' : '') + '">⟳</span> ' + (sincronizando ? (n ? 'Enviando…' : 'Atualizando…') : !cfg.url ? 'Demonstração' + (n ? ' · ' + n : '') : n ? 'Enviar ' + n + (!navigator.onLine ? ' (sem sinal)' : '') : !navigator.onLine ? 'Sem sinal' : 'Sincronizar');
   b.title = cfg.url ? (n ? n + ' lançamento(s) aguardando envio. Toque para enviar agora.' : 'Tudo enviado' + (hora ? ' (última vez às ' + hora + ')' : '') + '. Toque para buscar as novidades.') : 'Modo demonstração: os dados ficam só neste aparelho.';
@@ -275,7 +277,7 @@ function barraSync2() {
   const erroSync = erroRelevante();
   const n = fila.length, hora = ultimaSync ? new Date(ultimaSync).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ainda não';
   if (!n && !sincronizando && !recusados.length && !erroSync && navigator.onLine) return `<p class="mut" style="margin:0 0 10px;font-size:14px">✓ Tudo enviado · ${hora}</p>`;
-  return `<div class="bsync ${n ? 'pend' : ''}"><div><b>${sincronizando ? (n ? 'Enviando…' : 'Atualizando…') : n ? n + ' lançamento(s) aguardando envio' : 'Tudo enviado'}</b><small>${navigator.onLine ? 'Última sincronização: ' + hora : 'Sem internet agora: os lançamentos ficam guardados e vão sozinhos quando o sinal voltar.'}</small></div><button class="btn ${n ? 'acc' : 'sec'}" onclick="sincronizar(true)" ${sincronizando ? 'disabled' : ''}>⟳ Sincronizar</button></div>${recusados.length || erroSync || n ? `<div class="alert ${recusados.length || erroSync ? 'err' : ''}" style="margin:-4px 0 12px;cursor:pointer" onclick="ir('pendencias')">${recusados.length ? '⚠ ' + recusados.length + ' lançamento(s) recusado(s) precisam de atenção. ' : ''}${erroSync && !recusados.length ? '⚠ O último envio falhou. ' : ''}<b>Ver o que está pendente ›</b></div>` : ''}`;
+  return `<div class="bsync ${n ? 'pend' : ''}"><div><b>${sincronizando ? (n ? 'Enviando…' : 'Atualizando…') : n ? n + ' lançamento(s) aguardando envio' : 'Tudo enviado'}</b><small>${navigator.onLine ? 'Última sincronização: ' + hora : 'Sem internet agora: os lançamentos ficam guardados e vão sozinhos quando o sinal voltar.'}</small></div><button class="btn ${sincronizando || n ? 'acc' : ''}" style="${!sincronizando && !n && erroSync ? 'background:var(--err)' : ''}" onclick="sincronizar(true)" ${sincronizando ? 'disabled' : ''}>⟳ ${sincronizando ? (n ? 'Enviando…' : 'Atualizando…') : 'Sincronizar'}</button></div>${recusados.length || erroSync || n ? `<div class="alert ${recusados.length || erroSync ? 'err' : ''}" style="margin:-4px 0 12px;cursor:pointer" onclick="ir('pendencias')">${recusados.length ? '⚠ ' + recusados.length + ' lançamento(s) recusado(s) precisam de atenção. ' : ''}${erroSync && !recusados.length ? '⚠ O último envio falhou. ' : ''}<b>Ver o que está pendente ›</b></div>` : ''}`;
 }
 window.addEventListener('online', () => { atualizarSync(); sincronizar(); });
 window.addEventListener('offline', atualizarSync);
