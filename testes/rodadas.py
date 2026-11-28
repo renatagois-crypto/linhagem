@@ -1,3 +1,4 @@
+import os
 import asyncio, json, sys, urllib.request, openpyxl
 from playwright.async_api import async_playwright
 
@@ -42,14 +43,17 @@ async def lancar(pg, sub, final=None, campos=None, mudou=None, destino=None, out
     for k, v in (campos or {}).items():
         el = pg.locator('#' + k)
         if await el.evaluate('e=>e.tagName') == 'SELECT':
-            await el.select_option(label=v) if not v.startswith('#') else await el.select_option(index=int(v[1:]))
+            await el.evaluate("(e,v)=>{const o=[...e.options];const i=v.startsWith('#')?+v.slice(1):o.findIndex(x=>x.text===v);e.selectedIndex=i;e.dispatchEvent(new Event('change'))}", v)
         else:
             await el.fill(v)
     if mudou is not None:
         await pg.click('button.chip:text-is("Sim")' if mudou else 'button.chip:text-is("Não")')
     if destino:
-        await pg.select_option('#fDest', label=destino)
+        await pg.locator('#fDest').evaluate("(e,v)=>{const i=[...e.options].findIndex(x=>x.text===v||x.text.startsWith(v+' '));e.selectedIndex=i;e.dispatchEvent(new Event('change'))}", destino)
+    if os.environ.get('DBG'): print('   DBG', sub, await pg.evaluate("[($('sCan')||{}).value, ($('sCan')||{}).selectedIndex, tela, animalSel]"))
+    await pg.evaluate("document.querySelectorAll('.toast').forEach(t=>t.remove())")
     await pg.click('#main button.btn.acc'); await pg.wait_for_timeout(250)
+    if await pg.locator('.modal').count(): await pg.click('.modal .btn >> nth=0'); await pg.wait_for_timeout(250)  # confirma (como aceitar a caixa do navegador)
     return await toast(pg)
 
 def mock(path):
@@ -248,8 +252,8 @@ async def main():
         await pg2.evaluate("localStorage.clear()")
         await pg2.goto(URL + '?s=' + MOCK + '&k=segredo')
         # primeiro acesso: cria a administradora pela tela própria
-        await pg2.fill('#lgNome', 'Ana'); await pg2.click('button:has-text("Entrar")'); await pg2.wait_for_timeout(500)
-        ok('R10', await pg2.locator('#pNome').count() == 1, 'sem ninguém cadastrado, abre a tela de primeiro acesso')
+        await pg2.wait_for_timeout(800)
+        ok('R10', await pg2.locator('#pNome').count() == 1, 'servidor sem ninguém cadastrado: o link já abre o primeiro acesso, sem tocar em Entrar')
         await pg2.fill('#pNome', 'Ana'); await pg2.fill('#pEmail', 'ana@gmail.com'); await pg2.fill('#pPin', '1234'); await pg2.fill('#pPin2', '1234')
         await pg2.click('button:has-text("Criar minha conta")'); await pg2.wait_for_timeout(400)
         ok('R10', 'Ana' not in json.dumps(json.loads(mock('__sheets')).get('Usuarios', [])), 'PIN de 4 números é recusado no cadastro')
@@ -369,8 +373,25 @@ async def main():
         dialogos.clear()
         await pg2.evaluate("ir('lancar','ay1')"); await pg2.wait_for_timeout(300)
         await pg2.evaluate("animalSel='ay1'; L.sub='Biometria'; telaLancar()"); await pg2.wait_for_timeout(300)
-        await pg2.fill('#bPeso', '30500000'); await pg2.evaluate("salvarLanc()"); await pg2.wait_for_timeout(300)
-        ok('R11', any('fora do comum' in d for d in dialogos), 'peso absurdo pede confirmação: ' + str(dialogos[:1]))
+        await pg2.fill('#bPeso', '30500000'); await pg2.evaluate("salvarLanc(); 0"); await pg2.wait_for_timeout(300)
+        mt = await pg2.evaluate("(document.querySelector('.modal')||{}).innerText||''")
+        ok('R11', 'fora do comum' in mt and 'Corrigir peso' in mt, 'peso absurdo abre janela com "Corrigir peso": ' + mt[:60])
+        await pg2.click('.modal button:has-text("Corrigir peso")'); await pg2.wait_for_timeout(200)
+        ok('R11', await pg2.evaluate("document.activeElement && document.activeElement.id") == 'bPeso', '"Corrigir peso" volta para o campo')
+        # seleção automática, voltar à ficha, desfazer
+        await pg2.evaluate("L.sub='Biometria';L.lote=true;guardar();ir('lancar')"); await pg2.wait_for_timeout(200)
+        await pg2.fill('#qL', '44555'); await pg2.wait_for_timeout(1000)
+        ok('R11', await pg2.evaluate("animalSel") == 'ay1' and await pg2.evaluate("document.activeElement && document.activeElement.id") == 'bPeso', 'com um único resultado, o animal é escolhido sozinho e o cursor vai para o Peso')
+        await pg2.evaluate("ir('lancar','ay1')"); await pg2.wait_for_timeout(200); await pg2.fill('#bPeso', '3050'); await pg2.evaluate("salvarLanc(); 0"); await pg2.wait_for_timeout(400)
+        if await pg2.locator('.modal').count(): await pg2.click('.modal .btn >> nth=1'); await pg2.wait_for_timeout(300)
+        ok('R11', await pg2.evaluate("tela") == 'ficha', 'lançamento aberto pela ficha volta para a ficha (não repete o mesmo peixe)')
+        mock('__down?1')
+        await pg2.evaluate("ir('lancar','ay1')"); await pg2.wait_for_timeout(200); await pg2.fill('#bPeso', '3060'); await pg2.evaluate("salvarLanc(); 0"); await pg2.wait_for_timeout(400)
+        if await pg2.locator('.modal').count(): await pg2.click('.modal .btn >> nth=1'); await pg2.wait_for_timeout(300)
+        n1 = await pg2.evaluate("fila.length")
+        await pg2.click('.toast .tacao'); await pg2.wait_for_timeout(300)
+        ok('R11', n1 >= 1 and await pg2.evaluate("fila.length") == n1 - 1, '"Desfazer" logo depois de salvar tira o lançamento da fila')
+        mock('__down?0')
         # começar do zero (apagar dados de teste)
         r = await pg2.evaluate("chamar({...auth(),acao:'limparBase',dados:{pin:'246810',confirmar:'nao'}})")
         ok('R12', not r['ok'] and 'APAGAR' in r['erro'], 'apagar a base exige digitar APAGAR')

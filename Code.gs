@@ -20,6 +20,9 @@ function podeLancar(perfil, ev) {
   return '';
 }
 
+// rótulo de caneca sem repetir o "B" quando o botijão já se chama "B1"
+function rotCan(c) { if (!c) return '—'; var b = String(c.botijao || ''); return (/^\d/.test(b) ? 'B' + b : b) + '/C' + c.caneca; }
+
 function novoEstado() {
   return { animais: {}, viveiros: {}, canecas: {}, lotes: {}, atividades: [], movs: [], sugestoes: [], usados: {} };
 }
@@ -246,7 +249,7 @@ function aplicar(s, ev) {
       if (p.caneca === l3.caneca) erro('O lote já está nessa caneca.');
       var de = s.canecas[l3.caneca], para = s.canecas[p.caneca];
       l3.caneca = p.caneca;
-      s.atividades.push({ id: ev.uid, data: p.data || ev.ts, ts: ev.ts, animal: l3.doador, tipo: 'Movimentação de doses', resumo: 'B' + de.botijao + '/C' + de.caneca + ' → B' + para.botijao + '/C' + para.caneca, dados: { lote: l3.id }, origem: '', destino: '', user: ev.user || '', obs: '' });
+      s.atividades.push({ id: ev.uid, data: p.data || ev.ts, ts: ev.ts, animal: l3.doador, tipo: 'Movimentação de doses', resumo: rotCan(de) + ' → ' + rotCan(para), dados: { lote: l3.id }, origem: '', destino: '', user: ev.user || '', obs: '' });
       break;
     }
     case 'anular': {
