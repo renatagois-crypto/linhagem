@@ -11,7 +11,13 @@
 ## Como mudar algo com segurança
 1. Faça a alteração em `index.html` e/ou `regras.js` / `servidor.js`.
 2. Gere o `Code.gs`: `cat regras.js servidor.js > Code.gs`.
-3. Rode os testes: `node testes/mockserver.js &`, depois `python3 -m http.server 8765 &` na pasta do app e `python3 testes/rodadas.py`. Todos precisam passar.
+3. Rode os testes. Na pasta do app: `python3 -m http.server 8765 &`. Depois, dentro de `testes/`:
+   - `python3 gerar_planilhas.py` (cria as planilhas usadas pelos testes);
+   - `node mockserver.js &` e `python3 rodadas.py` (regras, importação, servidor);
+   - reinicie o `mockserver.js` e rode `python3 campo.py` (simula o teste de campo: técnico sem sinal, fecha e reabre, reconecta, outro aparelho confere);
+   - `python3 offline.py`, `python3 usabilidade_fluxos.py` e `python3 usabilidade_telas.py`;
+   - numa pasta vazia: `python3 testes/bateria_lancamentos/gerar.py` e `python3 testes/bateria_lancamentos/bateria.py`.
+   Todos precisam passar. A cada publicação, mude a `VERSAO` no `index.html` e o nome do cache no `sw.js` (ex.: `linhagem-v147`).
 4. Publique o app: envie para o GitHub (o GitHub Pages atualiza em cerca de 1 minuto).
 5. Se `regras.js` ou `servidor.js` mudaram: no editor do Apps Script, cole o novo `Code.gs` (mantendo o `PLANILHA_ID` e a chave), salve e vá em **Implantar → Gerenciar implantações → Editar → Nova versão → Implantar**. O endereço do servidor não muda.
 

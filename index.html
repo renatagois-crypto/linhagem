@@ -126,7 +126,7 @@ const LS = {
 function cookieGuardar(k, v) { try { document.cookie = 'linhagem_' + k + '=' + encodeURIComponent(JSON.stringify(v)) + ';path=/;max-age=31536000;SameSite=Lax' + (location.protocol === 'https:' ? ';Secure' : ''); } catch (e) {} }
 function cookieLer(k) { try { const m = document.cookie.match(new RegExp('(?:^|; )linhagem_' + k + '=([^;]*)')); return m ? JSON.parse(decodeURIComponent(m[1])) : undefined; } catch (e) { return undefined; } }
 // Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
-const VERSAO = '1.4.6 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
+const VERSAO = '1.4.7 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
 const GRANDES = ['base', 'fila', 'recusados'];
 const IDB = {
   db: null,
@@ -420,7 +420,7 @@ function telaLogin() {
   $('main').innerHTML = `<div class="splash"><img src="logo.svg" alt=""><h1>${esc(cfg.nome || 'Linhagem')}</h1><p>Gestão de Plantel, Manejo e Germoplasma</p></div>
     <div class="card" style="margin-top:20px">
     <h2>Entrar</h2>
-    <p class="mut">Informe seu nome e PIN. Cada lançamento fica registrado com o nome de quem fez.</p>
+    <p class="mut">Informe seu e-mail (ou nome) e PIN. Cada lançamento fica registrado com o nome de quem fez.</p>
     <label>E-mail ou nome</label>${nomes.length && false ? `<select id="lgNome">${nomes.map(u => `<option>${esc(u.nome)}</option>`).join('')}</select>` : `<input id="lgNome" type="text" autocomplete="username" autocapitalize="off" placeholder="seu e-mail ou nome" value="${esc(LS.get('ultimoNome', ''))}">${LS.get('ultimoNome', '') ? `<a class="lk" onclick="LS.set('ultimoNome','');telaLogin()">Não é você?</a>` : ''}`}
     <label>PIN</label><input id="lgPin" type="password" inputmode="numeric" placeholder="PIN">
     <div style="height:14px"></div>
@@ -529,7 +529,7 @@ function telaInicio() {
     </div>
     <div class="kpis">
       <div class="kpi"><b>${an.length}</b><span>animais ativos</span></div>
-      <div class="kpi"><b>${m} M · ${f} F</b><span>${an.length - m - f ? (an.length - m - f) + ' com sexo indefinido' : 'machos · fêmeas'}</span></div>
+      <div class="kpi"><b>${m} · ${f}</b><span>machos · fêmeas${an.length - m - f ? ' · ' + (an.length - m - f) + ' sem sexo' : ''}</span></div>
       <div class="kpi"><b>${Object.keys(S.viveiros).length}</b><span>viveiros</span></div>
       <div class="kpi"><b>${doses}</b><span>doses de sêmen</span></div>
     </div>
@@ -577,7 +577,7 @@ function telaLancar(idAnimal) {
           <div style="margin-top:8px"><button class="btn sec" style="min-height:48px;width:auto" onclick="animalSel=null;telaLancar()">Trocar animal</button></div></div>`
         : !nAtivos ? `<div class="alert">Ainda não há animais cadastrados. Importe a planilha do plantel ou cadastre o primeiro animal.</div>
           <div class="row"><button class="btn sec" onclick="ir('importar')">Importar planilha</button><button class="btn sec" onclick="L.sub='Novo animal (chipagem)';guardar();telaLancar()">Novo animal</button></div>`
-        : `<input id="qL" class="busca" inputmode="numeric" autocomplete="off" placeholder="Final do chip (ou RFID)" oninput="resBuscaL()" onkeydown="if(event.key==='Enter'){escolherBusca(this.value)}"><div id="resL"><p class="mut" style="margin:8px 0 0">Digite 4 ou 5 dígitos finais. Com um único resultado, o animal é selecionado sozinho.</p></div>`}`}
+        : `<input id="qL" class="busca" inputmode="numeric" autocomplete="off" placeholder="ex.: 48213" oninput="resBuscaL()" onkeydown="if(event.key==='Enter'){escolherBusca(this.value)}"><div id="resL"><p class="mut" style="margin:8px 0 0">Digite 4 ou 5 dígitos finais. Com um único resultado, o animal é selecionado sozinho.</p></div>`}`}
     </div>
     ${novo || L.sub === 'Mudança de viveiro' ? '' : `<div class="card" id="dadosCard">
       <div class="passo"><span>3</span> Dados — ${esc(L.sub.toLowerCase())}</div>
