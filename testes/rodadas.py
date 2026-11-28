@@ -485,6 +485,8 @@ async def main():
         await pg3.close()
         # ---------- extra: exportação Excel ----------
         print('Extra — exportar para Excel')
+        r = await pg.evaluate("[lerLinkAcesso('https://renatagois-crypto.github.io/linhagem/?s=https%3A%2F%2Fscript.google.com%2Fmacros%2Fs%2FX%2Fexec&k=abc'), lerLinkAcesso('https://www.google.com/url?q=https%3A%2F%2Frenatagois-crypto.github.io%2Flinhagem%2F%3Fs%3Dhttps%253A%252F%252Fscript.google.com%252Fx%26k%3Dz'), lerLinkAcesso('oi')]")
+        ok('X', r[0] == {'url': 'https://script.google.com/macros/s/X/exec', 'chave': 'abc'} and r[1] and r[1]['chave'] == 'z' and r[2] is None, 'colar o link do e-mail (inclusive embrulhado pelo Gmail) liga o aparelho ao servidor: ' + str(r))
         await pg.evaluate("ir('pendencias')"); await pg.wait_for_timeout(150); tp = await pg.inner_text('#main')
         ok('X', 'registros neste aparelho' in tp.lower() and 'Sincronizar agora' not in tp and 'aguardando envio' not in tp.lower(), 'modo demonstração: pendências sem promessa de envio nem botão de sincronizar')
         async with pg.expect_download() as d:

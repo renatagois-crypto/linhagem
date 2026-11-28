@@ -119,7 +119,7 @@ const LS = {
   set(k, v) { try { localStorage.setItem('plantel_' + k, JSON.stringify(v)); } catch (e) { toast('A memória do aparelho está cheia. Sincronize assim que possível.', 'err'); } }
 };
 // Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
-const VERSAO = '1.4 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
+const VERSAO = '1.4.1 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
 const GRANDES = ['base', 'fila', 'recusados'];
 const IDB = {
   db: null,
@@ -254,7 +254,7 @@ function avisoBackup() {
   const b = situacaoBackup(); return b && b.ruim ? `<div class="alert err" style="margin:0 0 12px">⚠ ${esc(b.txt)}. Confira o espaço no Google Drive.</div>` : '';
 }
 function barraSync() {
-  if (!cfg.url) return `<div class="bsync"><div><b>Modo demonstração</b><small>Os registros ficam só neste aparelho. Nada é enviado.</small></div></div>`;
+  if (!cfg.url) return `<div class="bsync"><div><b>Modo demonstração</b><small>Os registros ficam só neste aparelho. Nada é enviado.</small></div><button class="btn sec" onclick="ir('config')">Tenho o link de acesso</button></div>`;
   const avisos = avisoRelogio() + avisoBackup();
   if (avisos) return avisos + barraSync2();
   return barraSync2();
@@ -449,21 +449,44 @@ async function criarPrimeiro() {
     toast('Conta criada. Agora cadastre a equipe.', 'ok'); ir('usuarios'); sincronizar();
   } catch (e) { toast(e.message, 'err'); }
 }
+// lê o link do e-mail de acesso (…?s=<servidor>&k=<chave>), inclusive quando vem embrulhado pelo Gmail
+function lerLinkAcesso(txt) {
+  try {
+    let u = new URL(String(txt || '').trim());
+    if (!u.searchParams.get('s') && u.searchParams.get('q')) u = new URL(u.searchParams.get('q'));
+    if (!u.searchParams.get('s') && u.searchParams.get('url')) u = new URL(u.searchParams.get('url'));
+    const sv = u.searchParams.get('s'); return sv ? { url: sv, chave: u.searchParams.get('k') || '' } : null;
+  } catch (e) { return null; }
+}
+// liga o aparelho ao servidor; o que foi feito no modo demonstração NÃO vai para a base real
+async function ligarServidor(url, chave) {
+  const eraDemo = !cfg.url;
+  try {
+    const r = await fetch(url + '?chave=' + encodeURIComponent(chave)).then(x => x.json());
+    if (!r.ok) throw new Error(r.erro);
+    cfg.url = url; cfg.chave = chave; LS.set('cfg', cfg);
+    if (eraDemo) { fila = []; recusados = []; base = null; await salvarLocal(); recalcular(); user = null; LS.set('user', null); }
+    toast('Aparelho ligado ao servidor. Entre com seu e-mail e PIN.', 'ok');
+    if (r.primeiroAcesso) return telaPrimeiro();
+    tela = 'inicio'; render();
+  } catch (e) { toast('Não consegui conectar: ' + e.message, 'err'); }
+}
+function usarLink() {
+  const c = lerLinkAcesso(v('cfLink'));
+  if (!c) return toast('Esse não parece o link de acesso. Copie o endereço inteiro do botão "Abrir o Linhagem" do e-mail.', 'err');
+  ligarServidor(c.url, c.chave);
+}
 function formServidor() {
-  return `<label>Endereço do servidor (URL do Apps Script)</label><input id="cfUrl" value="${esc(cfg.url)}" placeholder="https://script.google.com/macros/s/…/exec">
+  return `<label>Cole aqui o link de acesso que veio no e-mail</label><input id="cfLink" placeholder="https://renatagois-crypto.github.io/linhagem/?s=…" autocapitalize="off">
+  <div style="height:8px"></div><button class="btn acc w" onclick="usarLink()">Ligar ao servidor</button>
+  <details style="margin-top:10px"><summary>Preencher à mão</summary><label>Endereço do servidor (URL do Apps Script)</label><input id="cfUrl" value="${esc(cfg.url)}" placeholder="https://script.google.com/macros/s/…/exec">
   <label>Chave do sistema</label><input id="cfChave" value="${esc(cfg.chave)}" placeholder="Senha definida no servidor">
-  <div style="height:10px"></div><button class="btn sec w" onclick="salvarServidor()">Salvar servidor</button>`;
+  <div style="height:10px"></div><button class="btn sec w" onclick="salvarServidor()">Salvar servidor</button></details>`;
 }
 async function salvarServidor() {
-  cfg.url = $('cfUrl').value.trim(); cfg.chave = $('cfChave').value.trim(); LS.set('cfg', cfg);
-  if (!cfg.url) { toast('Modo demonstração ativado.'); return render(); }
-  try {
-    const r = await fetch(cfg.url + '?chave=' + encodeURIComponent(cfg.chave)).then(x => x.json());
-    if (!r.ok) throw new Error(r.erro);
-    toast('Servidor conectado.' + (r.primeiroAcesso ? ' Primeiro acesso: crie a conta de administrador.' : ''), 'ok');
-    if (r.primeiroAcesso) return telaPrimeiro();
-    render();
-  } catch (e) { toast('Não consegui conectar: ' + e.message, 'err'); }
+  const url = $('cfUrl').value.trim(), chave = $('cfChave').value.trim();
+  if (!url) { cfg.url = ''; cfg.chave = chave; LS.set('cfg', cfg); toast('Modo demonstração ativado.'); return render(); }
+  return ligarServidor(url, chave);
 }
 
 // ===================== Início =====================
@@ -1472,7 +1495,8 @@ function mudarSug(id, st) { try { lancar([ev('sugestao_status', { id, status: st
 (function () {
   try {
     const q = new URLSearchParams(location.search);
-    if (q.get('s')) { cfg.url = q.get('s'); cfg.chave = q.get('k') || cfg.chave; LS.set('cfg', cfg); history.replaceState(null, '', location.pathname); }
+    // o endereço fica com ?s=&k=: no iPhone, o ícone da tela de início abre exatamente este endereço e tem memória separada do Safari
+    if (q.get('s')) { if (!cfg.url) window.__eraDemo = true; cfg.url = q.get('s'); cfg.chave = q.get('k') || cfg.chave; LS.set('cfg', cfg); }
   } catch (e) {}
 })();
 // Uma janela só: duas janelas abertas (app instalado + navegador) poderiam sobrescrever a fila uma da outra
@@ -1495,8 +1519,9 @@ function bloquearJanela(tomada) {
   $('main').innerHTML = `<div class="card" style="margin-top:30px;text-align:center"><h2>O Linhagem está aberto em outra janela</h2><p class="mut">${tomada ? 'Ele passou a ser usado na outra janela.' : 'Para não misturar os lançamentos guardados no aparelho, use uma janela só.'}</p><button class="btn acc w" onclick="window.__assumir()">Usar nesta janela</button></div>`;
   $('nav').innerHTML = '';
 }
-carregarArmazenamento().then(() => {
+carregarArmazenamento().then(async () => {
   if (janelaBloqueada) return;
+  if (window.__eraDemo) { fila = []; recusados = []; base = null; await salvarLocal(); if (user && !user.token) { user = null; LS.set('user', null); } } // demonstração não vai para a base real
   recalcular();
   render();
   sincronizar();
