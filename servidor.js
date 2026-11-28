@@ -314,6 +314,30 @@ function enviarCopiaMensal() {
   MailApp.sendEmail({ to: para.join(','), subject: 'Linhagem — cópia mensal dos dados', body: 'Cópia mensal automática da base do Linhagem (plantel e banco de sêmen), em Excel. Guarde este e-mail: é o backup fora do Google Drive.', attachments: [blob] });
 }
 
+// ----- Começar do zero: apaga os dados de teste (animais, viveiros, sêmen, manejos). Mantém pessoas e sugestões. -----
+function limparBase(u, d) {
+  if (u.perfil !== 'Administrador') throw new Error('Só o administrador pode apagar a base.');
+  if (String(d.confirmar || '').trim().toUpperCase() !== 'APAGAR') throw new Error('Para confirmar, digite APAGAR.');
+  var me = acharUsuario(usuarios(), u.nome);
+  if (!me || me.pin_hash !== hashPin(me.nome, d.pin)) throw new Error('PIN incorreto.');
+  var agora = new Date().toISOString();
+  // cópia de segurança antes de apagar (pasta Linhagem/Backups)
+  try {
+    var pr = PropertiesService.getScriptProperties(), pasta = pr.getProperty('PASTA_ID') ? DriveApp.getFolderById(pr.getProperty('PASTA_ID')) : DriveApp.getRootFolder();
+    var itB = pasta.getFoldersByName('Backups'), bk = itB.hasNext() ? itB.next() : pasta.createFolder('Backups');
+    DriveApp.getFileById(planilha().getId()).makeCopy('Linhagem — antes de limpar ' + Utilities.formatDate(new Date(), 'America/Cuiaba', 'yyyy-MM-dd HH:mm'), bk);
+  } catch (e) {}
+  var manter = linhas('Eventos').filter(function (r) { return r.tipo === 'usuario' || r.tipo === 'sugestao' || r.tipo === 'sugestao_status'; });
+  ['Viveiros', 'Canecas', 'Animais', 'LotesSemen', 'Atividades', 'Movimentacoes', 'Sugestoes', 'Eventos'].forEach(function (nome) {
+    var sh = planilha().getSheetByName(nome); if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, ABAS[nome].length).clearContent();
+  });
+  ORIG = {};
+  anexar('Eventos', manter.map(function (r) { return ABAS.Eventos.map(function (c) { return r[c]; }); }).concat([[Utilities.getUuid(), agora, agora, u.nome, 'limpeza', 'info', JSON.stringify({ motivo: 'Base apagada para recomeçar (dados de teste)' })]]));
+  var s = refazer(eventosOk()).s;
+  regravarTudo(s);
+  return s;
+}
+
 function foto(s) {
   delete s.usados;
   return { estado: s, usuarios: usuarios().map(function (u) { return { nome: u.nome, perfil: u.perfil }; }), em: new Date().toISOString() };
@@ -361,6 +385,7 @@ function doPost(e) {
       var comp = body.acao === 'usuario' ? salvarUsuario(body.dados || {}, u.nome) : '';
       return resposta({ ok: true, usuarios: listaUsuarios(), compartilhado: comp, planilhaUrl: planilha().getUrl() });
     }
+    if (body.acao === 'limparBase') { var sl = limparBase(u, body.dados || {}); return resposta({ ok: true, foto: foto(sl) }); }
     if (body.sair && body.token) { PropertiesService.getScriptProperties().deleteProperty('TOK_' + hashPin('tok', body.token)); return resposta({ ok: true }); }
     if (body.login) return resposta({ ok: true, nome: u.nome, perfil: u.perfil, trocarPin: !!u.trocarPin, token: novoToken(u) });
     var pr = PropertiesService.getScriptProperties();

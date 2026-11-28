@@ -136,7 +136,7 @@ let fila = [];         // lançamentos ainda não enviados
 let recusados = [];
 let S = novoEstado();
 let tela = 'inicio', telaArg = null;
-let syncDeNovo = false, sincronizando = false, ultimaSync = LS.get('ultimaSync', '');
+let syncDeNovo = false, sincronizando = false, ultimaSync = LS.get('ultimaSync', ''), erroSync = LS.get('erroSync', null);
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -193,12 +193,13 @@ async function sincronizar(manual) {
     const nRec = fila.length - nova.length - Object.values(res).filter(x => x.ok).length;
     fila = nova;
     base = r.foto;
-    ultimaSync = new Date().toISOString(); LS.set('ultimaSync', ultimaSync);
+    ultimaSync = new Date().toISOString(); LS.set('ultimaSync', ultimaSync); erroSync = null; LS.set('erroSync', null);
     salvarLocal(); recalcular(); render();
     if (nRec > 0) toast(nRec + ' lançamento(s) recusado(s) pelo servidor. Veja em Mais → Pendências.', 'err');
     else if (manual) toast('Sincronizado: tudo enviado e dados atualizados.', 'ok');
   } catch (e) {
-    if (manual) toast('Não foi possível sincronizar: ' + e.message, 'err');
+    erroSync = { msg: e.message, em: new Date().toISOString() }; LS.set('erroSync', erroSync);
+    if (manual) toast('Não foi possível sincronizar: ' + e.message + '. Veja em Mais → Sincronização.', 'err');
   } finally { sincronizando = false; atualizarSync(); if (syncDeNovo && fila.length) setTimeout(() => sincronizar(), 200); }
 }
 function atualizarSync() {
@@ -214,7 +215,7 @@ function atualizarSync() {
 function barraSync() {
   if (!cfg.url) return `<div class="bsync"><div><b>Modo demonstração</b><small>Os dados ficam só neste aparelho.</small></div></div>`;
   const n = fila.length, hora = ultimaSync ? new Date(ultimaSync).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ainda não';
-  return `<div class="bsync ${n ? 'pend' : ''}"><div><b>${sincronizando ? 'Enviando…' : n ? n + ' lançamento(s) aguardando envio' : 'Tudo enviado'}</b><small>${navigator.onLine ? 'Última sincronização: ' + hora : 'Sem internet agora: os lançamentos ficam guardados e vão sozinhos quando o sinal voltar.'}</small></div><button class="btn ${n ? 'acc' : 'sec'}" onclick="sincronizar(true)" ${sincronizando ? 'disabled' : ''}>⟳ Sincronizar</button></div>`;
+  return `<div class="bsync ${n ? 'pend' : ''}"><div><b>${sincronizando ? 'Enviando…' : n ? n + ' lançamento(s) aguardando envio' : 'Tudo enviado'}</b><small>${navigator.onLine ? 'Última sincronização: ' + hora : 'Sem internet agora: os lançamentos ficam guardados e vão sozinhos quando o sinal voltar.'}</small></div><button class="btn ${n ? 'acc' : 'sec'}" onclick="sincronizar(true)" ${sincronizando ? 'disabled' : ''}>⟳ Sincronizar</button></div>${recusados.length || erroSync || n ? `<div class="alert ${recusados.length || erroSync ? 'err' : ''}" style="margin:-4px 0 12px;cursor:pointer" onclick="ir('pendencias')">${recusados.length ? '⚠ ' + recusados.length + ' lançamento(s) recusado(s) precisam de atenção. ' : ''}${erroSync && !recusados.length ? '⚠ O último envio falhou. ' : ''}<b>Ver o que está pendente ›</b></div>` : ''}`;
 }
 window.addEventListener('online', () => { atualizarSync(); sincronizar(); });
 window.addEventListener('offline', atualizarSync);
@@ -239,6 +240,7 @@ window.addEventListener('popstate', e => { if (!user) return; const st = e.state
 function telaPai() {
   if (tela === 'editar') return ['ficha', telaArg, 'Ficha do animal'];
   if (tela === 'ficha') return ['animais', null, 'Animais'];
+  if (tela === 'limpar') return ['importar', null, 'Importar dados'];
   if (['viveiros', 'canecas', 'importar', 'pedigree', 'config', 'pendencias', 'painel', 'sugestoes', 'usuarios', 'sair', 'cruzamento', 'meupin'].includes(tela)) return ['mais', null, 'Mais'];
   return null;
 }
@@ -283,7 +285,7 @@ const ICON = {
 };
 function renderNav() {
   const it = [['inicio', 'Início'], ['lancar', 'Lançar'], ['animais', 'Animais'], ['semen', 'Sêmen'], ['mais', 'Mais']];
-  const grupo = { ficha: 'animais', viveiros: 'mais', canecas: 'mais', importar: 'mais', pedigree: 'mais', config: 'mais', pendencias: 'mais', painel: 'mais', editar: 'animais', sugestoes: 'mais', usuarios: 'mais', sair: 'mais', cruzamento: 'mais', meupin: 'mais' };
+  const grupo = { limpar: 'mais', ficha: 'animais', viveiros: 'mais', canecas: 'mais', importar: 'mais', pedigree: 'mais', config: 'mais', pendencias: 'mais', painel: 'mais', editar: 'animais', sugestoes: 'mais', usuarios: 'mais', sair: 'mais', cruzamento: 'mais', meupin: 'mais' };
   const at = grupo[tela] || tela;
   $('nav').innerHTML = it.map(([k, l]) => `<button class="${at === k ? 'on' : ''}" onclick="ir('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>${l}</button>`).join('');
 }
@@ -292,7 +294,7 @@ function render() {
   if (!user) { telaLogin(); $('nav').innerHTML = ''; atualizarSync(); return; }
   if (user.trocarPin && tela !== 'meupin') tela = 'meupin';
   renderNav(); atualizarSync();
-  const f = { inicio: telaInicio, lancar: telaLancar, animais: telaAnimais, ficha: telaFicha, semen: telaSemen, mais: telaMais, viveiros: telaViveiros, canecas: telaCanecas, importar: telaImportar, pedigree: telaPedigree, config: telaConfig, pendencias: telaPendencias, painel: telaPainel, editar: telaEditar, sugestoes: telaSugestoes, usuarios: telaUsuarios, sair: telaSair, cruzamento: telaCruzamento, meupin: telaMeuPin }[tela];
+  const f = { inicio: telaInicio, lancar: telaLancar, animais: telaAnimais, ficha: telaFicha, semen: telaSemen, mais: telaMais, viveiros: telaViveiros, canecas: telaCanecas, importar: telaImportar, pedigree: telaPedigree, config: telaConfig, pendencias: telaPendencias, painel: telaPainel, editar: telaEditar, sugestoes: telaSugestoes, usuarios: telaUsuarios, sair: telaSair, cruzamento: telaCruzamento, meupin: telaMeuPin, limpar: telaLimpar }[tela];
   f(telaArg);
   const pai = telaPai();
   if (pai && !user.trocarPin) $('main').insertAdjacentHTML('afterbegin', `<div class="voltar noprint"><button onclick="ir('${pai[0]}'${pai[1] ? `,'${esc(pai[1])}'` : ''})">‹ ${pai[2]}</button><button onclick="ir('inicio')">Início</button></div>`);
@@ -679,7 +681,7 @@ function acaoLote(id) {
 // ===================== Mais =====================
 function telaMais() {
 
-  const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ...(user.perfil === 'Administrador' || !cfg.url ? [['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)']] : []), ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['cruzamento', 'Simular cruzamento', 'Parentesco entre macho e fêmea e endogamia esperada do filho'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ...(user.perfil === 'Administrador' ? [['usuarios', 'Pessoas e PINs', 'Quem pode entrar no sistema, com qual perfil, e acesso à planilha']] : []), ...(user.token ? [['meupin', 'Trocar meu PIN', 'Precisa de internet']] : []), ['pendencias', 'Pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)'], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
+  const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ...(user.perfil === 'Administrador' || !cfg.url ? [['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)']] : []), ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['cruzamento', 'Simular cruzamento', 'Parentesco entre macho e fêmea e endogamia esperada do filho'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ...(user.perfil === 'Administrador' ? [['usuarios', 'Pessoas e PINs', 'Quem pode entrar no sistema, com qual perfil, e acesso à planilha']] : []), ...(user.token ? [['meupin', 'Trocar meu PIN', 'Precisa de internet']] : []), ['pendencias', 'Sincronização e pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)' + (erroSync ? ' · último envio falhou' : '')], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
   $('main').innerHTML = `<h2>Mais</h2><div class="card" style="padding:4px 12px">${it.map(([k, t, s]) => `<div class="item" onclick="${k === 'excel' ? 'exportarExcel()' : `ir('${k}')`}"><div class="m"><b>${t}</b><div class="s">${s}</div></div><span>›</span></div>`).join('')}</div>
     <p class="mut">Usuário: <b>${esc(user.nome)}</b> · <a class="lk" onclick="ir('sair')">Sair</a></p>`;
 }
@@ -745,6 +747,32 @@ const IMPORTS = {
   manejos: { nome: 'Outros manejos (histórico)', cols: 'CHIP, DATA, MANEJO, DETALHE' }
 };
 let imp = null, impTipo = 'animais';
+// ===================== Começar do zero (apagar dados de teste) =====================
+function telaLimpar() {
+  const n = Object.keys(S.animais).length, nv = Object.keys(S.viveiros).length, nl = Object.keys(S.lotes).length, na = S.atividades.length;
+  $('main').innerHTML = `<h2>Começar do zero</h2>
+    <div class="card"><p style="margin-top:0">Apaga os <b>dados de teste</b> para importar a planilha real. Hoje a base tem <b>${n}</b> animal(is), <b>${nv}</b> viveiro(s), <b>${nl}</b> lote(s) de sêmen e <b>${na}</b> lançamento(s).</p>
+    <ul class="mut" style="padding-left:18px;margin:6px 0 10px"><li>Ficam: as <b>pessoas e PINs</b> e as <b>melhorias e correções</b> registradas.</li><li>Antes de apagar, o servidor guarda uma <b>cópia da planilha</b> em Linhagem/Backups ("antes de limpar").</li><li>Os outros aparelhos recebem a base vazia na próxima sincronização.</li></ul>
+    ${fila.length ? `<div class="alert err">Há ${fila.length} lançamento(s) deste aparelho aguardando envio. Eles serão descartados.</div>` : ''}
+    ${cfg.url ? `<label>Seu PIN</label><input id="lmPin" type="password" inputmode="numeric" autocomplete="current-password">` : ''}
+    <label>Para confirmar, digite <b>APAGAR</b></label><input id="lmOk" autocapitalize="characters" autocomplete="off">
+    <div style="height:12px"></div><button class="btn w" style="background:var(--err)" onclick="limparBase()">Apagar os dados de teste</button>
+    <div style="height:8px"></div><button class="btn sec w" onclick="ir('importar')">Cancelar</button></div>`;
+}
+async function limparBase() {
+  try {
+    if (v('lmOk').toUpperCase() !== 'APAGAR') throw new Error('Para confirmar, digite APAGAR.');
+    if (cfg.url) {
+      if (!navigator.onLine) throw new Error('Precisa de internet para apagar a base.');
+      const r = await chamar({ ...auth(), acao: 'limparBase', dados: { pin: v('lmPin'), confirmar: v('lmOk') } });
+      if (!r.ok) throw new Error(r.erro);
+      base = r.foto;
+    } else base = null;
+    fila = []; recusados = []; salvarLocal(); recalcular();
+    toast('Base apagada. Agora é só importar a planilha real.', 'ok'); ir('importar');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
 function telaImportar(tipo) {
   if (tipo) impTipo = tipo;
   $('main').innerHTML = `<h2>Importar dados</h2>
@@ -754,7 +782,8 @@ function telaImportar(tipo) {
     ${impTipo !== 'animais' && impTipo !== 'viveiros' && impTipo !== 'canecas' ? '<p class="mut">Importe o plantel antes: os chips desta planilha precisam já estar cadastrados.</p>' : ''}
     <button class="btn sec w" style="margin-top:8px" onclick="baixarModelo()">Baixar modelo de planilha (${IMPORTS[impTipo].nome})</button>
     <label class="btn acc w" style="color:#fff;margin-top:8px">Escolher arquivo (.xlsx ou .csv)<input type="file" id="arq" accept=".xlsx,.xls,.csv" class="hide" onchange="lerPlanilha(this.files[0])"></label></div>
-    <div id="prev"></div>`;
+    <div id="prev"></div>
+    ${Object.keys(S.animais).length && (user.perfil === 'Administrador' || !cfg.url) ? `<div class="card" style="border-color:#E8C7C2;margin-top:14px"><b>Já há dados na base</b> (${Object.keys(S.animais).length} animais). Se são dados de teste ou de exemplo, apague antes de importar a planilha real, para não misturar.<div style="height:8px"></div><button class="btn sec w" onclick="ir('limpar')">Começar do zero (apagar dados de teste)</button></div>` : ''}`;
 }
 const MODELOS = {
   animais: [['PRODUTO', 'SAFRA', 'SEXO', 'PAI', 'MAE', 'Tanque atual', 'RAZAO_PAI', 'RAZAO_MAE', 'CLASSE_PRIORIDADE'], ['982000123456789', '2022', 'M', '982000111111111', '982000222222222', 'V-01', '', '', 'A']],
@@ -1050,14 +1079,51 @@ function telaConfig() {
     ${ultimaSync ? `<p class="mut">Última sincronização: ${new Date(ultimaSync).toLocaleString('pt-BR')}</p>` : ''}</div>
     <div class="card"><h3 style="margin-top:0">Cópia de segurança</h3><button class="btn sec w" onclick="baixar('plantel_backup_'+hoje()+'.json',JSON.stringify({base,fila,recusados}))">Baixar cópia dos dados deste aparelho</button></div>`;
 }
+function descrever(e) {
+  const p = e.p || {}, an = S.animais[p.animal || p.id] || (p.lote && S.lotes[p.lote] && S.animais[S.lotes[p.lote].doador]);
+  const nome = { animal_novo: 'Cadastro de animal', editar_animal: 'Edição de animal', viveiro: 'Viveiro ' + (p.codigo || ''), caneca: 'Caneca ' + (p.botijao ? 'B' + p.botijao + '/C' + p.caneca : ''), descartar_doses: 'Descarte de doses', mover_doses: 'Mudança de caneca', sugestao: 'Melhoria/correção', sugestao_status: 'Situação de sugestão', anular: 'Anulação' }[e.tipo] || (p.sub === 'Outro manejo' ? (p.dados && p.dados.qual) || 'Outro manejo' : p.sub) || e.tipo;
+  const chip = an ? an.chip : p.chip ? normChip(p.chip) : '';
+  return { nome, chip, animal: an ? an.id : '' };
+}
+// o que fazer para cada tipo de recusa
+function oQueFazer(msg) {
+  msg = String(msg || '');
+  if (/já está ativo/.test(msg)) return 'Outro aparelho já cadastrou esse chip. Abra a ficha do animal que já existe; se este cadastro foi engano, descarte-o.';
+  if (/Outra pessoa já mudou/.test(msg)) return 'Alguém já mudou este peixe de viveiro. Confira o viveiro atual na ficha e, se ainda precisar, lance a mudança de novo.';
+  if (/Sessão encerrada|PIN/.test(msg)) return 'Entre de novo com seu e-mail e PIN. Os lançamentos continuam guardados.';
+  if (/administrador|perfil/i.test(msg)) return 'Seu perfil não permite este lançamento. Peça ao administrador para fazer.';
+  if (/dose/.test(msg)) return 'O lote não tem doses suficientes. Confira o estoque de sêmen e lance com a quantidade certa.';
+  if (/não encontrad/i.test(msg)) return 'O animal ou lote não existe mais no servidor (pode ter sido anulado). Confira na ficha.';
+  if (/status|não pode receber/.test(msg)) return 'O animal está com baixa (óbito, descarte ou transferência). Se a baixa foi engano, o administrador reverte na ficha.';
+  if (/viveiro/i.test(msg)) return 'O viveiro de destino não pode receber animais (inativo ou em vazio sanitário). Escolha outro.';
+  if (/safra|pai|mãe|sexo/i.test(msg)) return 'Há um problema na genealogia ou no sexo. Confira os pais e a safra na ficha.';
+  if (/Failed to fetch|NetworkError|conectar|fora/i.test(msg)) return 'Não houve conexão com o servidor. Confira a internet e toque em Sincronizar agora; nada se perde.';
+  return 'Confira os dados e lance de novo. Se o erro repetir, toque em "Relatar" para avisar quem mantém o sistema.';
+}
 function telaPendencias() {
-  $('main').innerHTML = `<h2>Pendências</h2>
-    <div class="card"><h3 style="margin-top:0">Aguardando envio (${fila.length})</h3>${fila.slice(-50).reverse().map(e => `<div class="item"><div class="m"><b>${esc(e.p.sub || e.tipo)}</b><div class="s">${new Date(e.ts).toLocaleString('pt-BR')}${e._erro ? ' · <span class="tag bad">' + esc(e._erro) + '</span>' : ''}</div></div></div>`).join('') || '<p class="mut">Tudo enviado.</p>'}
-    <button class="btn w ${fila.length ? 'acc' : 'sec'}" onclick="sincronizar(true).then(()=>{if(tela==='pendencias')telaPendencias()})">⟳ Sincronizar agora</button></div>
-    <div class="card"><h3 style="margin-top:0">Recusados pelo servidor (${recusados.length})</h3>
-    <p class="mut">Acontece quando duas pessoas lançaram algo conflitante sem internet (ex.: o mesmo chip em dois animais). Confira e lance de novo se for o caso.</p>
-    ${recusados.slice(0, 50).map(e => `<div class="item"><div class="m"><b>${esc(e.p.sub || e.tipo)}</b> ${e.p.chip ? '<span class="mono">' + esc(e.p.chip) + '</span>' : ''}<div class="s">${esc(e.erro)} · ${new Date(e.ts).toLocaleString('pt-BR')}</div></div></div>`).join('') || '<p class="mut">Nenhum.</p>'}
-    ${recusados.length ? `<button class="btn sec w" onclick="if(confirm('Limpar a lista de recusados?')){recusados=[];salvarLocal();telaPendencias()}">Limpar lista</button>` : ''}</div>`;
+  const hora = ultimaSync ? new Date(ultimaSync).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ainda não';
+  const pend = fila.slice().reverse(), comErro = fila.filter(e => e._erro).length;
+  $('main').innerHTML = `<h2>Sincronização e pendências</h2>
+    <div class="card">
+      <div class="kpis" style="margin:0 0 10px"><div class="kpi"><b>${fila.length}</b><span>aguardando envio</span></div><div class="kpi"><b>${recusados.length}</b><span>recusados</span></div></div>
+      <p class="mut" style="margin:0 0 6px">Última sincronização: <b>${hora}</b> · ${navigator.onLine ? 'com internet' : '<b>sem internet agora</b>'}</p>
+      ${erroSync ? `<div class="alert err" style="margin:8px 0"><b>O último envio falhou</b> (${new Date(erroSync.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}): ${esc(erroSync.msg)}<br>${esc(oQueFazer(erroSync.msg))}</div>` : ''}
+      <button class="btn w ${fila.length ? 'acc' : 'sec'}" onclick="sincronizar(true).then(()=>{if(tela==='pendencias')telaPendencias()})">⟳ Sincronizar agora</button>
+      <p class="mut" style="margin:8px 0 0">Nada se perde: o que não foi enviado fica guardado neste aparelho e vai sozinho quando houver internet. Não use "Sair e apagar os dados" com lançamentos aguardando envio.</p>
+    </div>
+    <h3>Aguardando envio (${fila.length})</h3>
+    <div class="card" style="padding:4px 12px">${pend.slice(0, 80).map(e => { const d = descrever(e); return `<div class="item" style="cursor:default"><div class="m"><b>${esc(d.nome)}</b>${d.chip ? ' <span class="mono">…' + esc(d.chip.slice(-6)) + '</span>' : ''}<div class="s">Feito em ${new Date(e.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${e.user ? ' · ' + esc(e.user) : ''}</div>${e._erro ? `<div class="alert err" style="margin:6px 0 0">Não confere com os dados atuais: ${esc(e._erro)}<br>${esc(oQueFazer(e._erro))}</div>` : ''}</div></div>`; }).join('') || '<p class="mut">Tudo enviado.</p>'}${fila.length > 80 ? `<p class="mut">… e mais ${fila.length - 80}.</p>` : ''}</div>
+    ${comErro ? `<p class="mut">${comErro} lançamento(s) aguardando não conferem mais com os dados (alguém mudou algo antes). Ao sincronizar, o servidor decide; se recusar, aparecem abaixo.</p>` : ''}
+    <h3>Recusados pelo servidor (${recusados.length})</h3>
+    <div class="card" style="padding:4px 12px">${recusados.slice(0, 50).map((e, i) => { const d = descrever(e); return `<div class="item" style="cursor:default;align-items:flex-start"><div class="m"><b>${esc(d.nome)}</b>${d.chip ? ' <span class="mono">' + esc(d.chip) + '</span>' : ''}<div class="s">Feito em ${new Date(e.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · recusado em ${new Date(e.em || e.ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
+      <div class="alert err" style="margin:6px 0"><b>Motivo:</b> ${esc(e.erro)}</div><div style="font-size:14px;margin-bottom:6px"><b>O que fazer:</b> ${esc(oQueFazer(e.erro))}</div>
+      <div class="chips noprint">${d.animal && S.animais[d.animal] ? `<button class="chip" onclick="ir('ficha','${esc(d.animal)}')">Abrir ficha</button>` : ''}<button class="chip" onclick="relatarRecusa(${i})">Relatar</button><button class="chip" onclick="if(confirm('Descartar este lançamento recusado? Ele não será enviado.')){recusados.splice(${i},1);salvarLocal();telaPendencias()}">Descartar</button></div></div></div>`; }).join('') || '<p class="mut">Nenhum. Quando o servidor recusa algo, aparece aqui com o motivo e o que fazer.</p>'}</div>
+    ${recusados.length > 1 ? `<button class="btn sec w" onclick="if(confirm('Descartar todos os recusados?')){recusados=[];salvarLocal();telaPendencias()}">Descartar todos os recusados</button>` : ''}`;
+}
+function relatarRecusa(i) {
+  const e = recusados[i], d = descrever(e);
+  try { lancar([ev('sugestao', { tipo: 'Correção', tela: 'Sincronização', texto: 'Lançamento recusado: ' + d.nome + (d.chip ? ' (chip ' + d.chip + ')' : '') + ', feito em ' + new Date(e.ts).toLocaleString('pt-BR') + '. Motivo: ' + e.erro })]); toast('Relatado em Melhorias e correções.', 'ok'); }
+  catch (x) { toast(x.message, 'err'); }
 }
 
 // ===================== Genética: simular cruzamento =====================
