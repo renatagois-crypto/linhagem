@@ -182,6 +182,8 @@ async def main():
         t = await lancar(pg, 'Coleta de ovócitos', '00004', {'oPeso': '350', 'oLote': '#1', 'oDoses': '2'})
         d = await S(pg, f"S.lotes['{lote}'].disp")
         ok('R6', d in (10, 12) and 'salva' in t, f'doses baixadas do lote certo (disp={d}): {t}')
+        t = await lancar(pg, 'Biometria', '00004', {'bPeso': '2150', 'bCT': '40', 'bCP': '52'})
+        ok('R6', 'padrão' in t and 'maior' in t, 'comprimento padrão maior que o total é barrado: ' + t)
         t = await lancar(pg, 'Coleta de ovócitos', '200000001', {'oPeso': '100'})
         ok('R6', 'Fêmea' in t, 'ovócitos em macho é barrado: ' + t)
 
@@ -378,6 +380,14 @@ async def main():
         ok('R11', 'fora do comum' in mt and 'Corrigir peso' in mt, 'peso absurdo abre janela com "Corrigir peso": ' + mt[:60])
         await pg2.click('.modal button:has-text("Corrigir peso")'); await pg2.wait_for_timeout(200)
         ok('R11', await pg2.evaluate("document.activeElement && document.activeElement.id") == 'bPeso', '"Corrigir peso" volta para o campo')
+        # genealogia: abrir o pai e voltar ao filho
+        filho = await pg2.evaluate("(Object.values(S.animais).find(a=>a.pai&&S.animais[a.pai])||{}).id || ''")
+        if filho:
+            await pg2.evaluate(f"ir('ficha','{filho}')"); await pg2.wait_for_timeout(200)
+            await pg2.evaluate(f"ir('ficha', S.animais['{filho}'].pai)"); await pg2.wait_for_timeout(200)
+            ok('R11', await pg2.locator('.voltar button:has-text("Voltar ao peixe")').count() == 1, 'ficha aberta pela genealogia mostra "Voltar ao peixe …"')
+            await pg2.click('.voltar button:has-text("Voltar ao peixe")'); await pg2.wait_for_timeout(300)
+            ok('R11', await pg2.evaluate("telaArg") == filho, 'e volta para o filho')
         # seleção automática, voltar à ficha, desfazer
         await pg2.evaluate("L.sub='Biometria';L.lote=true;guardar();ir('lancar')"); await pg2.wait_for_timeout(200)
         await pg2.fill('#qL', '44555'); await pg2.wait_for_timeout(1000)

@@ -179,10 +179,11 @@ function aplicar(s, ev) {
       if (tipo === 'Biometria') {
         var peso = num(d.peso), ct = num(d.ct), cp = num(d.cp);
         if (peso == null || peso <= 0) erro('Informe o peso (g).');
+        if (ct != null && cp != null && cp > ct) erro('O comprimento padrão (' + cp + ' cm) não pode ser maior que o total (' + ct + ' cm). Confira os dois campos.');
         var L = cp || ct, k = L ? Math.round(100 * peso / Math.pow(L, 3) * 1000) / 1000 : null;
         var ult = ultimaBiometria(s, an.id);
         var dados = { peso: peso, ct: ct, cp: cp, altura: num(d.altura), k: k, ganho: ult ? peso - ult.dados.peso : null };
-        resumo = peso + ' g' + (ct ? ' · CT ' + ct + ' cm' : '') + (k ? ' · K ' + k : '') + (dados.ganho != null ? ' · ganho ' + (dados.ganho >= 0 ? '+' : '') + dados.ganho + ' g' : '');
+        resumo = peso + ' g' + (ct ? ' · CT ' + ct + ' cm' : '') + (cp ? ' · CP ' + cp + ' cm' : '') + (k ? ' · K ' + k + (cp ? ' (pelo CP)' : ' (pelo CT)') : '') + (dados.ganho != null ? ' · ganho ' + (dados.ganho >= 0 ? '+' : '') + dados.ganho + ' g' : '');
         registrar(s, ev, an.id, tipo, resumo, dados, origem, destino);
       } else if (tipo === 'Coleta de sêmen') {
         if (an.sexo === 'I' && p.confirmaSexo) an.sexo = 'M';
@@ -210,7 +211,8 @@ function aplicar(s, ev) {
           if (lt.disp === 0) lt.status = 'Esgotado';
         }
         if (d.macho && (!s.animais[d.macho] || s.animais[d.macho].sexo !== 'M')) erro('O macho do cruzamento precisa estar cadastrado como Macho.');
-        resumo = (num(d.pesoDesova) != null ? d.pesoDesova + ' g de desova · ' : '') + (d.destinoDesova || '') + (usadas ? ' · ' + usadas + ' dose(s) usadas' : '');
+        var doador = d.lote ? s.lotes[d.lote].doador : d.macho, chD = doador && s.animais[doador] ? s.animais[doador].chip : '';
+        resumo = (num(d.pesoDesova) != null ? d.pesoDesova + ' g de desova · ' : '') + (d.destinoDesova || '') + (d.destinoDesova === 'Fertilização' ? (d.lote ? ' · sêmen congelado' : d.macho ? ' · sêmen fresco' : '') + (chD ? ' do macho …' + chD.slice(-5) : '') : '') + (usadas ? ' · ' + usadas + ' dose(s) usadas' : '');
         registrar(s, ev, an.id, tipo, resumo, { protocolo: d.protocolo || '', pesoDesova: num(d.pesoDesova), fecundidade: num(d.fecundidade), qualidade: d.qualidade || '', destinoDesova: d.destinoDesova || '', macho: d.macho || (d.lote ? s.lotes[d.lote].doador : ''), lote: d.lote || '', dosesUsadas: usadas }, origem, destino);
       } else if (tipo === 'Rechipagem') {
         var novo = normChip(d.novoChip);

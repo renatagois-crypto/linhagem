@@ -119,7 +119,7 @@ const LS = {
   set(k, v) { try { localStorage.setItem('plantel_' + k, JSON.stringify(v)); } catch (e) { toast('A memória do aparelho está cheia. Sincronize assim que possível.', 'err'); } }
 };
 // Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
-const VERSAO = '1.2 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
+const VERSAO = '1.3 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
 const GRANDES = ['base', 'fila', 'recusados'];
 const IDB = {
   db: null,
@@ -251,8 +251,11 @@ function modal(titulo, corpo, botoes) {
   });
 }
 let veioFicha = false;
+let pilhaFicha = [];
 function ir(t, arg, semHistorico) {
-  if (t === 'lancar') { limparForm = true; L.data = hoje(); L.mudou = false; veioFicha = !!arg; if (!arg) animalSel = null; }
+  if (t === 'voltarFicha') { const p = pilhaFicha.pop(); window.__voltando = true; ir('ficha', p); window.__voltando = false; setTimeout(() => { const g = [...document.querySelectorAll('h3')].find(x => x.textContent === 'Genealogia'); if (g) { g.scrollIntoView(); window.scrollBy(0, -80); } }, 30); return; }
+  if (t === 'ficha' && !window.__voltando) { if (tela === 'ficha' && telaArg && arg !== telaArg) pilhaFicha.push(telaArg); else if (tela !== 'ficha') pilhaFicha = []; }
+  if (t === 'lancar') { limparForm = true; L.data = hoje(); L.mudou = false; L.seq = 0; veioFicha = !!arg; if (!arg) animalSel = null; }
   tela = t; telaArg = arg;
   // botão "voltar" do celular volta para a tela anterior do app, em vez de sair
   if (!semHistorico) { try { history.pushState({ t, arg }, ''); } catch (e) {} }
@@ -260,8 +263,15 @@ function ir(t, arg, semHistorico) {
 }
 window.addEventListener('popstate', e => { if (!user) return; const st = e.state || { t: 'inicio' }; ir(st.t, st.arg, true); });
 // tela "de cima" de cada subtela: é para lá que o link Voltar leva
+// quantos dos 6 ancestrais (pais e avós) estão cadastrados
+function cobertura(id) {
+  const a = S.animais[id]; if (!a) return 0;
+  let n = 0; [a.pai, a.mae].forEach(p => { if (p && S.animais[p]) { n++; const pp = S.animais[p]; if (pp.pai) n++; if (pp.mae) n++; } });
+  return n;
+}
 function telaPai() {
   if (tela === 'editar') return ['ficha', telaArg, 'Ficha do animal'];
+  if (tela === 'ficha' && pilhaFicha.length) { const p = S.animais[pilhaFicha[pilhaFicha.length - 1]]; return ['voltarFicha', null, 'Voltar ao peixe …' + (p ? p.chip.slice(-5) : '')]; }
   if (tela === 'ficha') return ['animais', null, 'Animais'];
   if (tela === 'limpar') return ['importar', null, 'Importar dados'];
   if (['viveiros', 'canecas', 'importar', 'pedigree', 'config', 'pendencias', 'painel', 'sugestoes', 'usuarios', 'sair', 'cruzamento', 'meupin'].includes(tela)) return ['mais', null, 'Mais'];
@@ -274,6 +284,21 @@ function vivOpts(sel, filtro) {
     .map(v => `<option value="${v.id}" ${v.id === sel ? 'selected' : ''}>${esc(v.codigo)}${v.nome ? ' — ' + esc(v.nome) : ''}</option>`).join('');
 }
 // com até 8 opções, mostra botões grandes (bom com luva); o select continua por baixo, escondido
+function barraDestino() {
+  const a = S.animais[animalSel], el = $('bsViv'); if (!a || !el) return;
+  el.innerHTML = esc(SEXO[a.sexo] || '') + ' · ' + esc(viv(a.viveiro)) + (L.destino ? ' → <b>' + esc(viv(L.destino)) + '</b>' : '');
+}
+function tipoSemen(t) {
+  $('tgCong').classList.toggle('on', t === 'C'); $('tgFres').classList.toggle('on', t === 'F');
+  $('oCong').classList.toggle('hide', t !== 'C'); $('oFresco').classList.toggle('hide', t !== 'F');
+  if (t === 'C') $('oMacho').value = ''; else { $('oLote').value = ''; $('oDoses').value = ''; saldoLote(); }
+}
+function saldoLote() {
+  const l = S.lotes[v('oLote')], u = parseInt(v('oDoses'), 10) || 0, el = $('oSaldo'); if (!el) return;
+  if (!l) return el.classList.add('hide');
+  const d = S.animais[l.doador]; el.classList.remove('hide');
+  el.innerHTML = `Doador <b>…${esc(d ? d.chip.slice(-5) : '?')}</b> · ${esc(rotCan(S.canecas[l.caneca]))}<br><b>${l.disp} disponíveis − ${u} usadas = ${l.disp - u} restantes</b>${u > l.disp ? ' <span style="color:var(--err)">(não há doses suficientes)</span>' : ''}`;
+}
 function botoesSelect(id, opcoesHtml, onchange) {
   const tmp = document.createElement('select'); tmp.innerHTML = opcoesHtml;
   const ops = [...tmp.options].filter(o => o.value);
@@ -469,7 +494,7 @@ function telaLancar(idAnimal) {
     </div>
     <div class="card">
       ${novo ? `<div class="passo"><span>2</span> Dados do animal novo</div>${formNovo()}` : `
-      <div class="passo"><span>2</span> Qual animal?</div>
+      <div class="passo"><span>2</span> Qual animal?${L.lote && L.seq ? ` <span class="tag ok" style="margin-left:auto">${L.seq} peixe(s) nesta sequência</span>` : ''}</div>
       ${a ? `<div class="sel">${chipFmt(a.chip)}<div class="s mut">${tagSexo(a.sexo)} Safra ${esc(a.safra || '—')} · Viveiro <b>${esc(viv(a.viveiro))}</b></div>
           <div style="margin-top:8px"><button class="btn sec" style="min-height:48px;width:auto" onclick="animalSel=null;telaLancar()">Trocar animal</button></div></div>`
         : !nAtivos ? `<div class="alert">Ainda não há animais cadastrados. Importe a planilha do plantel ou cadastre o primeiro animal.</div>
@@ -484,7 +509,7 @@ function telaLancar(idAnimal) {
       <div class="passo"><span>${novo || L.sub === 'Mudança de viveiro' ? 3 : 4}</span> ${L.sub === 'Mudança de viveiro' ? 'Para onde vai, e quando' : 'Viveiro, data e observações'}</div>
       ${mostraMuda ? `<label>Houve mudança de viveiro?</label>
         <div class="chips"><button class="chip ${!L.mudou ? 'on' : ''}" onclick="L.mudou=false;guardar();telaLancar()">Não</button><button class="chip ${L.mudou ? 'on' : ''}" onclick="L.mudou=true;guardar();telaLancar()">Sim</button></div>` : ''}
-      ${mostraDest ? `<label>${novo ? 'Viveiro onde o animal vai ficar' : 'Viveiro de destino'}${a ? ' (hoje está no ' + esc(viv(a.viveiro)) + ')' : ''}</label>${botoesSelect('fDest', vivOpts(L.destino, true), "L.destino=this.value;guardar()")}${L.lote && L.destino && !veioFicha ? `<div class="destmantido">Destino mantido do peixe anterior: <b>${esc(viv(L.destino))}</b>. Confira a cada peixe.</div>` : ''}` : ''}
+      ${mostraDest ? `<label>${novo ? 'Viveiro onde o animal vai ficar' : 'Viveiro de destino'}${a ? ' (hoje está no ' + esc(viv(a.viveiro)) + ')' : ''}</label>${botoesSelect('fDest', vivOpts(L.destino, true), "L.destino=this.value;guardar();barraDestino()")}${L.lote && L.destino && !veioFicha ? `<div class="destmantido">Destino mantido do peixe anterior: <b>${esc(viv(L.destino))}</b>. Confira a cada peixe.</div>` : ''}` : ''}
       <div class="grid2"><div><label>Data</label><input id="fData" type="date" value="${L.data}" onchange="L.data=this.value;guardar()"></div>
       </div>${veioFicha ? '' : `<label class="toggle"><span><b>Vários animais seguidos</b><br><small class="mut">Depois de salvar, a tela volta pronta para o próximo peixe</small></span><input type="checkbox" ${L.lote ? 'checked' : ''} onchange="L.lote=this.checked;guardar();telaLancar()"></label>`}
       <label>Observações</label><textarea id="fObs" rows="2"></textarea>
@@ -493,7 +518,7 @@ function telaLancar(idAnimal) {
       ${L.lote ? `<p class="mut" style="margin:8px 0 0"><b>${S.atividades.filter(x => x.tipo === (L.sub === 'Outro manejo' ? L.outro : L.sub) && String(x.data).slice(0, 10) === L.data).length}</b> lançamento(s) deste tipo nesta data.</p>` : ''}
       ${L.lote ? '<p class="mut" style="margin:8px 0 0">Depois de salvar, a tela volta pronta para o próximo animal com o mesmo manejo e o mesmo viveiro de destino.</p>' : ''}
     </div>
-    <div class="barSalvar noprint"><div class="bsInfo"><small>${esc(novo ? 'Novo animal' : L.sub === 'Outro manejo' ? (L.outro || 'Outro manejo') : L.sub)}</small>${novo ? '<b>Preencha o chip e o viveiro</b>' : a ? `<span class="chipbig">…${esc(a.chip.slice(-5))}</span> <small style="display:inline">${esc(SEXO[a.sexo] || '')} · ${esc(viv(a.viveiro))}</small>` : '<b>Falta escolher o animal</b>'}</div><button class="btn acc" onclick="salvarLanc()">✓ ${nomeSalvar}</button></div>`;
+    <div class="barSalvar noprint"><div class="bsInfo"><small>${esc(novo ? 'Novo animal' : L.sub === 'Outro manejo' ? (L.outro || 'Outro manejo') : L.sub)}</small>${novo ? '<b>Preencha o chip e o viveiro</b>' : a ? `<span class="chipbig">…${esc(a.chip.slice(-5))}</span> <small style="display:inline" id="bsViv">${esc(SEXO[a.sexo] || '')} · ${esc(viv(a.viveiro))}${mostraDest && L.destino ? ' → <b>' + esc(viv(L.destino)) + '</b>' : ''}</small>` : '<b>Falta escolher o animal</b>'}</div>${veioFicha && a ? `<div style="display:grid;gap:6px"><button class="btn acc" onclick="salvarLanc()">✓ Salvar e voltar à ficha</button><button class="btn sec" style="min-height:40px;padding:6px 12px" onclick="window.__proximo=true;salvarLanc()">Salvar e lançar outro peixe</button></div>` : `<button class="btn acc" onclick="salvarLanc()">✓ ${nomeSalvar}</button>`}</div>`;
   setTimeout(() => {
     const q = $('qL') || $('nChip') || (a && (document.querySelector('#dadosCard input') || $('fDest') || document.querySelector('.chipdest .chip')));
     if (q) { q.focus(); if (a) q.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
@@ -544,9 +569,10 @@ function camposTipo(a) {
       <div class="grid2">${campo('oPeso', 'Peso da desova (g)', 'n')}${campo('oFec', 'Fecundidade (ovócitos/g)', 'n')}</div>
       <label>Qualidade visual</label><select id="oQual"><option></option><option>Boa</option><option>Regular</option><option>Ruim</option></select>
       <label>Destino da desova</label><select id="oDest" onchange="$('oFert').classList.toggle('hide',this.value!=='Fertilização')"><option>Fertilização</option><option>Análise laboratorial</option><option>Descarte</option></select>
-      <div id="oFert"><label>Sêmen congelado usado (lote)</label><select id="oLote"><option value="">Nenhum (sêmen fresco)</option>${lotes.map(l => { const d = S.animais[l.doador], c = S.canecas[l.caneca] || {}; return `<option value="${l.id}">${d ? '…' + esc(d.chip.slice(-5)) : '?'} · ${fData(l.data)} · ${l.disp} doses · ${esc(rotCan(c))}</option>`; }).join('')}</select>
-      ${campo('oDoses', 'Doses usadas', 'n')}
-      <label>Macho do cruzamento (sêmen fresco)</label><select id="oMacho"><option value="">—</option>${machos.map(m => `<option value="${m.id}">…${esc(m.chip.slice(-6))} · safra ${esc(m.safra)}</option>`).join('')}</select></div>`;
+      <div id="oFert"><label>Sêmen usado *</label><div class="chipdest"><button type="button" class="chip on" id="tgCong" onclick="tipoSemen('C')">Congelado (do banco)</button><button type="button" class="chip" id="tgFres" onclick="tipoSemen('F')">Fresco (macho na hora)</button></div>
+      <div id="oCong"><label>Lote de sêmen congelado</label><select id="oLote" onchange="saldoLote()"><option value="">Escolha o lote</option>${lotes.map(l => { const d = S.animais[l.doador], c = S.canecas[l.caneca] || {}; return `<option value="${l.id}">${d ? '…' + esc(d.chip.slice(-5)) : '?'} · ${fData(l.data)} · ${l.disp} doses · ${esc(rotCan(c))}</option>`; }).join('')}</select>
+      ${campo('oDoses', 'Doses usadas', 'n', 'oninput="saldoLote()"')}<div id="oSaldo" class="destmantido hide"></div></div>
+      <div id="oFresco" class="hide"><label>Macho do cruzamento</label><select id="oMacho"><option value="">—</option>${machos.map(m => `<option value="${m.id}">…${esc(m.chip.slice(-6))} · safra ${esc(m.safra)}</option>`).join('')}</select></div></div>`;
   }
   if (sub === 'Rechipagem') return `<div class="grid2">${campo('rChip', 'Novo chip (15 dígitos)', 'n')}${campo('rMot', 'Motivo')}</div>`;
   if (sub === 'Outro manejo') {
@@ -578,7 +604,7 @@ function marcarFaltando(ids, msg) {
   if (!f.length) return;
   f.forEach(id => { const e = $(id); e.classList.add('faltando'); const c = e.nextElementSibling; if (c && c.classList.contains('chipdest')) c.classList.add('faltando'); });
   const e0 = $(f[0]); (e0.classList.contains('hide') ? e0.nextElementSibling : e0).scrollIntoView({ block: 'center', behavior: 'smooth' }); if (!e0.classList.contains('hide')) e0.focus();
-  throw new Error(msg + ': ' + f.map(id => ({ sDoses: 'doses envasadas', sCan: 'botijão e caneca', bPeso: 'peso', fDest: 'viveiro de destino', oDoses: 'doses usadas', nChip: 'chip' })[id] || id).join(', ') + '.');
+  throw new Error(msg + ': ' + f.map(id => ({ sDoses: 'doses envasadas', sCan: 'botijão e caneca', bPeso: 'peso', fDest: 'viveiro de destino', oDoses: 'doses usadas', nChip: 'chip', oLote: 'lote de sêmen', oMacho: 'macho do cruzamento' })[id] || id).join(', ') + '.');
 }
 async function salvarLanc() {
   try {
@@ -606,6 +632,7 @@ async function salvarLanc() {
       if (p != null && u && u.dados.peso && Math.abs(p - u.dados.peso) / u.dados.peso > 0.5 && !(await modal('Confira o peso', `O peso mudou mais de 50% desde a última biometria: <b>${u.dados.peso} g → ${p} g</b>.`, [{ t: 'Corrigir peso', cls: 'acc', v: false }, { t: 'Está certo, salvar', v: true }]))) return corrigir();
     }
     if (L.sub === 'Coleta de sêmen') { dados = { volume: v('sVol'), motilidade: v('sMot'), vigor: v('sVig'), conc: v('sConc'), diluidor: v('sDil'), doses: v('sDoses'), volDose: v('sVolD'), cor: v('sCor'), caneca: v('sCan') }; L.caneca = dados.caneca; }
+    if (L.sub === 'Coleta de ovócitos' && v('oDest') === 'Fertilização' && a.sexo !== 'M') { if ($('tgCong').classList.contains('on')) marcarFaltando(['oLote', 'oDoses'], 'Falta preencher'); else marcarFaltando(['oMacho'], 'Falta escolher'); }
     if (L.sub === 'Coleta de ovócitos') dados = { protocolo: v('oProt'), pesoDesova: v('oPeso'), fecundidade: v('oFec'), qualidade: v('oQual'), destinoDesova: v('oDest'), lote: v('oDest') === 'Fertilização' ? v('oLote') : '', dosesUsadas: v('oDoses'), macho: v('oDest') === 'Fertilização' ? v('oMacho') : '' };
     if (L.sub === 'Rechipagem') dados = { novoChip: v('rChip'), motivo: v('rMot') };
     if (L.sub === 'Outro manejo') { if (!L.outro) throw new Error('Escolha qual manejo.'); dados = { qual: L.outro, detalhe: v('xDet') }; }
@@ -616,8 +643,10 @@ async function salvarLanc() {
     lancar([evL]);
     if (mudou) L.destino = dest;
     guardar();
-    toast((L.sub === 'Outro manejo' ? L.outro : L.sub) + ' salva para …' + a.chip.slice(-5) + (mudou ? ' · foi para ' + viv(dest) : ''), 'ok', { t: 'Desfazer', f: () => desfazer(evL.uid) });
+    L.seq = (L.seq || 0) + 1;
+    toast((L.sub === 'Outro manejo' ? L.outro : L.sub) + ' salva para …' + a.chip.slice(-5) + (mudou ? ' · foi para ' + viv(dest) : '') + (!cfg.url ? ' · só neste aparelho (demonstração)' : navigator.onLine ? ' · enviando…' : ' · guardada; envia quando tiver sinal'), 'ok', { t: 'Desfazer', f: () => desfazer(evL.uid) });
     animalSel = null; limparForm = true;
+    if (window.__proximo) { window.__proximo = false; veioFicha = false; L.lote = true; animalSel = null; limparForm = true; return telaLancar(); }
     if (L.lote && !veioFicha) telaLancar(); else ir('ficha', a.id); // veio da ficha: volta para ela (não repete o mesmo peixe)
   } catch (e) { toast(e.message, 'err'); }
 }
@@ -657,7 +686,7 @@ function telaFicha(id) {
       <div style="margin:8px 0">${tagSexo(a.sexo)} <span class="tag ${ativo(a) ? '' : 'bad'}">${esc(a.status)}</span></div>
       <table><tr><th>Safra</th><td>${esc(a.safra || '—')}</td><th>Viveiro atual</th><td><b>${esc(viv(a.viveiro))}</b></td></tr>
       <tr><th>Classe prioridade</th><td>${esc(a.classe || '—')}</td><th>Razão pai / mãe</th><td>${esc(a.razaoPai || '—')} / ${esc(a.razaoMae || '—')}</td></tr>
-      <tr><th>Endogamia (F)</th><td>${a.pai && a.mae ? fmtF(endogamia(S, a.id)) : '— <small class="mut">(pais não cadastrados)</small>'}</td><th>Pais</th><td>${a.pai || a.mae ? 'Registrados' : esc(a.origemPais || 'Não informados')}</td></tr></table>
+      <tr><th>Endogamia (F)</th><td>${a.pai && a.mae ? fmtF(endogamia(S, a.id)) + (cobertura(a.id) < 6 ? ' <small class="mut">(pedigree incompleto: ' + cobertura(a.id) + ' de 6)</small>' : '') : '— <small class="mut">(pais não cadastrados)</small>'}</td><th>Pais</th><td>${a.pai || a.mae ? 'Registrados' : esc(a.origemPais || 'Não informados')}</td></tr></table>
       ${ativo(a) ? `<div class="chipdest noprint" style="margin-top:12px">${[['Biometria', '⚖️ Biometria'], ['Mudança de viveiro', '🔁 Mudar viveiro'], a.sexo !== 'F' ? ['Coleta de sêmen', '🧪 Coleta de sêmen'] : null, a.sexo !== 'M' ? ['Coleta de ovócitos', '🥚 Ovócitos'] : null, ['Outro manejo', 'Outro…']].filter(Boolean).map(([s, t]) => `<button class="btn ${s === 'Biometria' ? 'acc' : 'sec'}" style="width:auto;min-height:48px" onclick="L.sub='${s}';guardar();ir('lancar','${id}')">${t}</button>`).join('')}</div>` : ''}
       <div class="row noprint" style="margin-top:8px">${user.perfil === 'Administrador' || !cfg.url ? `<button class="btn sec sm" onclick="ir('editar','${id}')">Editar</button>` : ''}<button class="btn sec sm" onclick="window.print()">PDF / imprimir</button></div></div>
     <div class="card"><h3 style="margin-top:0">Genealogia</h3>
@@ -1115,6 +1144,8 @@ async function exportarExcel() {
         .concat(Object.values(S.lotes).map(l => { const c = S.canecas[l.caneca] || {}, d = S.animais[l.doador] || {}; return [ch(l.doador), d.safra || '', String(l.data).slice(0, 10), c.botijao || '', c.caneca || '', l.cor, l.ini, l.disp, l.status]; })),
       'Todos os manejos': [['Data', 'Chip', 'Tipo', 'Resumo', 'Viveiro origem', 'Viveiro destino', 'Responsável', 'Observações']]
         .concat(S.atividades.slice().sort((a, b) => String(a.data).localeCompare(String(b.data))).map(a => [String(a.data).slice(0, 10), ch(a.animal), a.tipo, a.resumo, vc(a.origem), vc(a.destino), a.user, a.obs])),
+      Fertilizações: [['Data', 'Fêmea (chip)', 'Peso da desova (g)', 'Fecundidade (ovócitos/g)', 'Protocolo', 'Sêmen', 'Doador (chip)', 'Data da coleta do lote', 'Botijão', 'Caneca', 'Doses usadas', 'Responsável']]
+        .concat(S.atividades.filter(a => a.tipo === 'Coleta de ovócitos' && a.dados.destinoDesova === 'Fertilização' && !a.anulada).map(a => { const l = S.lotes[a.dados.lote], c = l ? S.canecas[l.caneca] || {} : {}; return [String(a.data).slice(0, 10), ch(a.animal), a.dados.pesoDesova ?? '', a.dados.fecundidade ?? '', a.dados.protocolo || '', a.dados.lote ? 'Congelado' : 'Fresco', ch(a.dados.macho), l ? String(l.data).slice(0, 10) : '', c.botijao || '', c.caneca || '', a.dados.dosesUsadas || '', a.user]; })),
       Movimentações: [['Data', 'Chip', 'De', 'Para', 'Motivo', 'Responsável']]
         .concat(S.movs.map(m => [String(m.data).slice(0, 10), ch(m.animal), vc(m.origem), vc(m.destino), m.motivo, m.user])),
       Sugestões: [['Data', 'Usuário', 'Tipo', 'Tela', 'Texto', 'Status', 'Resposta']]
@@ -1200,7 +1231,7 @@ function telaPendencias() {
   $('main').innerHTML = `<h2>Sincronização e pendências</h2>
     <div class="card">
       <div class="kpis" style="margin:0 0 10px"><div class="kpi"><b>${fila.length}</b><span>aguardando envio</span></div><div class="kpi"><b>${recusados.length}</b><span>recusados</span></div></div>
-      <p class="mut" style="margin:0 0 6px">Última sincronização: <b>${hora}</b> · ${navigator.onLine ? 'com internet' : '<b>sem internet agora</b>'}</p>
+      ${!cfg.url ? '<div class="alert" style="margin:0 0 8px"><b>Modo demonstração:</b> não há servidor configurado. Tudo fica só neste aparelho e nada é enviado.</div>' : `<p class="mut" style="margin:0 0 6px">Última sincronização: <b>${hora}</b> · ${navigator.onLine ? 'com internet' : '<b>sem internet agora</b>'}</p>`}
       ${erroSync ? `<div class="alert err" style="margin:8px 0"><b>O último envio falhou</b> (${new Date(erroSync.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}): ${esc(erroSync.msg)}<br>${esc(oQueFazer(erroSync.msg))}</div>` : ''}
       <button class="btn w ${fila.length ? 'acc' : 'sec'}" onclick="sincronizar(true).then(()=>{if(tela==='pendencias')telaPendencias()})">⟳ Sincronizar agora</button>
       <p class="mut" style="margin:8px 0 0">Nada se perde: o que não foi enviado fica guardado neste aparelho e vai sozinho quando houver internet. Não use "Sair e apagar os dados" com lançamentos aguardando envio.</p>
@@ -1232,7 +1263,7 @@ function telaCruzamento() {
     const machos = Object.values(S.animais).filter(m => m.sexo === 'M' && (ativo(m) || disp[m.id])).map(m => ({ m, F: coancestria(S, m.id, f.id, c), d: disp[m.id] || 0 }))
       .sort((a, b) => a.F - b.F || b.d - a.d);
     lista = `<h3>Machos para a fêmea …${esc(f.chip.slice(-6))}</h3><p class="mut">Do menor para o maior parentesco. F do filho a partir de 6,25% (primos de primeiro grau ou parentesco mais próximo) aparece em vermelho. Se faltam pais ou avós cadastrados, o F pode sair menor que o real.</p>
-      <div class="card"><table><tr><th>Macho</th><th>Safra</th><th>F do filho</th><th>Doses</th></tr>${machos.map(x => `<tr><td>${linkAn(x.m.id)}</td><td>${esc(x.m.safra || '—')}</td><td>${x.F >= 0.0625 - 1e-9 ? '<span class="tag bad">' + fmtF(x.F) + '</span>' : fmtF(x.F)}</td><td>${x.d || '—'}</td></tr>`).join('') || '<tr><td colspan="4" class="mut">Nenhum macho disponível.</td></tr>'}</table></div>`;
+      <div class="card"><table><tr><th>Macho</th><th>Safra</th><th>F do filho</th><th>Doses</th></tr>${machos.map(x => `<tr><td>${linkAn(x.m.id)}</td><td>${esc(x.m.safra || '—')}</td><td>${x.F >= 0.0625 - 1e-9 ? '<span class="tag bad">' + fmtF(x.F) + '</span>' : fmtF(x.F)}${(() => { const c = Math.min(cobertura(x.m.id), cobertura(f.id)); return c < 6 ? `<br><small class="mut">no pedigree disponível · dados incompletos (${c} de 6 avós/pais)</small>` : ''; })()}</td><td>${x.d || '—'}</td></tr>`).join('') || '<tr><td colspan="4" class="mut">Nenhum macho disponível.</td></tr>'}</table></div>`;
   }
   $('main').innerHTML = `<h2>Simular cruzamento</h2>
     <div class="card"><p class="mut" style="margin-top:0">Escolha a fêmea. O sistema calcula, pelo pedigree registrado, o parentesco com cada macho e a endogamia (F) que o filho teria.</p>
@@ -1369,7 +1400,7 @@ function telaSugestoes() {
     </div></div>`).join('') || '<p class="mut">Nenhuma ainda.</p>'}</div>`;
 }
 function enviarSugestao() {
-  try { lancar([ev('sugestao', { tipo: $('tgC').classList.contains('on') ? 'Correção' : 'Melhoria', tela: v('sgTela'), texto: v('sgTxt') })]); toast('Enviado. Obrigado!', 'ok'); telaSugestoes(); }
+  try { lancar([ev('sugestao', { tipo: $('tgC').classList.contains('on') ? 'Correção' : 'Melhoria', tela: v('sgTela'), texto: v('sgTxt') })]); toast(!cfg.url ? 'Registrado neste aparelho (demonstração: não vai para ninguém).' : navigator.onLine ? 'Registrado. Obrigado! Vai para a equipe agora.' : 'Registrado. Vai para a equipe quando houver internet.', 'ok'); telaSugestoes(); }
   catch (e) { toast(e.message, 'err'); }
 }
 function mudarSug(id, st) { try { lancar([ev('sugestao_status', { id, status: st })]); telaSugestoes(); } catch (e) { toast(e.message, 'err'); } }
