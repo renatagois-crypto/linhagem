@@ -340,6 +340,9 @@ async def main():
         ok('R10', r['ok'] and r['compartilhado'] == 'ver' and ex['shares'] == [['ver', 'planilha', 'tiago@gmail.com']], 'compartilha só a planilha (não a pasta), para ver: ' + str(ex['shares']))
         ok('R10', ex['protegidas'].get('Usuarios') and ex['protegidas'].get('Eventos'), 'abas Usuarios e Eventos protegidas')
         ok('R10', ex['trig'] == 1 and len(json.loads(mock('__backups'))) >= 1 and len(ex['mails']) >= 1, 'gatilho de backup diário + backup + cópia mensal por e-mail')
+        r = await pg2.evaluate("chamar({...auth(),acao:'usuario',dados:{nome:'Prof Tiago',email:'tiago@gmail.com',perfil:'Administrador',ativo:true,convite:true}})")
+        m = json.loads(mock('__extra'))['ultimoMail']
+        ok('R10', r['ok'] and r['convite'] and m['to'] == 'tiago@gmail.com' and '?s=' in m['htmlBody'] and 'Tela de Início' in m['htmlBody'] and '123456' not in m['htmlBody'], 'e-mail de convite com link, instalação no celular e sem o PIN')
         r = await pg2.evaluate("chamar({...auth(),acao:'usuario',dados:{nome:'Ana',perfil:'Técnico'}})")
         ok('R10', not r['ok'], 'administradora não tira o próprio perfil de administrador por engano')
         # lote grande: envio em blocos

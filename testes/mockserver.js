@@ -18,7 +18,7 @@ const cache={};global.CacheService={getScriptCache:()=>({get:k=>cache[k]||null,p
 global.backups=[];
 const pastaObj=(nome)=>({getId:()=>'pasta_'+nome,getFoldersByName:n=>{let used=false;return{hasNext:()=>!used&&false,next:()=>pastaObj(n)}},createFolder:n=>pastaObj(n),getFiles:()=>{let i=0;return{hasNext:()=>i<global.backups.length,next:()=>global.backups[i++]}}});
 global.DriveApp={getFileById:id=>({addEditor:e=>global.shares.push(['editar',id,e]),addViewer:e=>global.shares.push(['ver',id,e]),moveTo:()=>{},makeCopy:(n)=>{global.backups.push({nome:n,getDateCreated:()=>new Date(),setTrashed:()=>{}})}}),getRootFolder:()=>pastaObj('root'),getFolderById:id=>pastaObj(id)};
-const trig=[];global.ScriptApp={getScriptId:()=>'script',getOAuthToken:()=>'tok',getProjectTriggers:()=>trig,newTrigger:h=>{const b={timeBased(){return b},everyDays(){return b},atHour(){return b},create(){trig.push({getHandlerFunction:()=>h})}};return b}};global.UrlFetchApp={fetch:()=>({getBlob:()=>({setName(n){this.n=n;return this}})})};global.MailApp={sendEmail:o=>global.mails.push(o.to)};
+const trig=[];global.ScriptApp={getService:()=>({getUrl:()=>'https://script.google.com/macros/s/X/exec'}),getScriptId:()=>'script',getOAuthToken:()=>'tok',getProjectTriggers:()=>trig,newTrigger:h=>{const b={timeBased(){return b},everyDays(){return b},atHour(){return b},create(){trig.push({getHandlerFunction:()=>h})}};return b}};global.UrlFetchApp={fetch:()=>({getBlob:()=>({setName(n){this.n=n;return this}})})};global.MailApp={sendEmail:o=>{global.mails.push(o.to);global.ultimoMail=o}};
 global.LockService={getScriptLock:()=>({waitLock(){},releaseLock(){}})};
 global.ContentService={createTextOutput:t=>({setMimeType(){return t}}),MimeType:{JSON:1}};
 eval(fs.readFileSync('/home/claude/plantel/Code.gs','utf8')+';global.doPost=doPost;global.doGet=doGet;global.reconstruir=reconstruirDosEventos;');
@@ -27,7 +27,7 @@ http.createServer((req,res)=>{
   res.setHeader('Access-Control-Allow-Origin','*');
   if(req.url.startsWith('/__down')){down=req.url.includes('1');res.end('ok');return;}
   if(req.url.startsWith('/__sheets')){res.end(JSON.stringify(Object.fromEntries(Object.entries(sheets).map(([k,v])=>[k,v.d]))));return;}
-  if(req.url.startsWith('/__extra')){res.end(JSON.stringify({shares:global.shares,mails:global.mails,protegidas:global.protegidas,trig:trig.length,props:Object.keys(props)}));return;}
+  if(req.url.startsWith('/__extra')){res.end(JSON.stringify({ultimoMail:global.ultimoMail,shares:global.shares,mails:global.mails,protegidas:global.protegidas,trig:trig.length,props:Object.keys(props)}));return;}
   if(req.url.startsWith('/__props')){const q=new URL(req.url,'http://x').searchParams;props[q.get('k')]=q.get('v');res.end('ok');return;}
   if(req.url.startsWith('/__backups')){res.end(JSON.stringify(global.backups.map(b=>b.nome)));return;}
   if(req.url.startsWith('/__limpacache')){for(const k in cache)delete cache[k];res.end('ok');return;}

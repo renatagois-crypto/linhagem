@@ -314,6 +314,7 @@ function endogamia(s, id, c) {
 // Configure em Projeto > Propriedades do script: CHAVE = (uma senha do sistema, a mesma digitada no app)
 // Se o script não estiver dentro da planilha (Extensões > Apps Script), informe o ID da planilha aqui:
 var PLANILHA_ID = '';
+var APP_URL = 'https://renatagois-crypto.github.io/linhagem/'; // endereço do aplicativo (para o e-mail de convite)
 function planilha() { return PLANILHA_ID ? SpreadsheetApp.openById(PLANILHA_ID) : SpreadsheetApp.getActive(); }
 
 var ABAS = {
@@ -543,8 +544,28 @@ function salvarUsuario(d, quem, primeiro) {
   else anexar('Usuarios', [linha]);
   var compartilhado = '';
   if (email && d.acessoPlanilha) compartilhado = compartilharPlanilha(email, d.acessoPlanilha);
+  if (email && d.convite && linha[3] === 'Sim') enviarConvite(linha[0], email, linha[2], quem);
   anexar('Eventos', [[Utilities.getUuid(), new Date().toISOString(), new Date().toISOString(), quem, 'usuario', 'ok', JSON.stringify({ nome: linha[0], email: email, perfil: linha[2], ativo: linha[3], pinAlterado: !!d.pin, planilha: compartilhado })]]);
   return compartilhado;
+}
+// e-mail de boas-vindas: link que já configura o aparelho + como instalar no celular. O PIN não vai no e-mail.
+function enviarConvite(nome, email, perfil, quem) {
+  var srv = ''; try { srv = ScriptApp.getService().getUrl(); } catch (e) {}
+  var chave = PropertiesService.getScriptProperties().getProperty('CHAVE') || '';
+  var link = APP_URL + '?s=' + encodeURIComponent(srv) + '&k=' + encodeURIComponent(chave);
+  var html = '<div style="font-family:Arial,sans-serif;font-size:15px;color:#14262A;max-width:560px">'
+    + '<h2 style="color:#0B4449;margin:0 0 8px">Linhagem — seu acesso</h2>'
+    + '<p>Olá, ' + nome + '! ' + quem + ' cadastrou você no <b>Linhagem</b>, o sistema do plantel de tambaqui e do banco de sêmen, com o perfil <b>' + perfil + '</b>.</p>'
+    + '<p style="margin:18px 0"><a href="' + link + '" style="background:#E8833A;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:bold">Abrir o Linhagem</a></p>'
+    + '<p><b>1. Abra o link acima no celular</b> (de preferência pelo próprio celular). Ele já deixa o aparelho ligado ao servidor do laboratório.</p>'
+    + '<p><b>2. Entre</b> com este e-mail (' + email + ') e o <b>PIN provisório</b> que ' + quem + ' vai te passar à parte. No primeiro acesso, o app pede para você criar o seu PIN (6 a 8 números).</p>'
+    + '<p><b>3. Instale na tela inicial</b>, para abrir como um aplicativo e usar sem internet:</p>'
+    + '<ul><li><b>Android (Chrome):</b> toque nos três pontinhos ⋮ no canto de cima e em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li>'
+    + '<li><b>iPhone (Safari):</b> toque no botão Compartilhar (quadrado com seta) e em <b>Adicionar à Tela de Início</b>.</li></ul>'
+    + '<p>O primeiro acesso precisa de internet. Depois, o app funciona também na beira do viveiro, sem sinal, e envia tudo quando a internet voltar.</p>'
+    + '<p>Achou algo estranho ou sentiu falta de um campo? Registre em <b>Mais → Melhorias e correções</b>, dentro do app.</p>'
+    + '<p style="color:#5E7276;font-size:13px">Se o botão não abrir, copie este endereço no navegador do celular:<br>' + link + '</p></div>';
+  MailApp.sendEmail({ to: email, subject: 'Linhagem — seu acesso ao sistema do plantel', htmlBody: html, body: 'Abra no celular: ' + link + ' — entre com este e-mail e o PIN provisório que ' + quem + ' vai te passar. Depois, adicione à tela inicial pelo menu do navegador.', name: 'Linhagem' });
 }
 // dá acesso só à planilha (não à pasta: o servidor e os backups ficam de fora). Padrão: só ver.
 function compartilharPlanilha(email, nivel) {
@@ -695,7 +716,7 @@ function doPost(e) {
     if (body.acao === 'usuarios' || body.acao === 'usuario') {
       if (u.perfil !== 'Administrador') throw new Error('Só o administrador cadastra pessoas e PINs.');
       var comp = body.acao === 'usuario' ? salvarUsuario(body.dados || {}, u.nome) : '';
-      return resposta({ ok: true, usuarios: listaUsuarios(), compartilhado: comp, planilhaUrl: planilha().getUrl() });
+      return resposta({ ok: true, usuarios: listaUsuarios(), compartilhado: comp, convite: !!(body.dados && body.dados.convite && body.dados.email), planilhaUrl: planilha().getUrl() });
     }
     if (body.acao === 'limparBase') { var sl = limparBase(u, body.dados || {}); return resposta({ ok: true, foto: foto(sl) }); }
     if (body.sair && body.token) { PropertiesService.getScriptProperties().deleteProperty('TOK_' + hashPin('tok', body.token)); return resposta({ ok: true }); }

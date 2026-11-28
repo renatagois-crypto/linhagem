@@ -1192,6 +1192,8 @@ async function telaUsuarios(acao) {
     <div><label>Acesso à planilha no Google Drive</label><select id="uPlan"><option value="">Não compartilhar</option><option value="ver">Pode ver a planilha</option><option value="editar">Pode editar a planilha (cuidado)</option></select></div>
     <div><label>Perfil</label><select id="uPerfil"><option>Técnico</option><option>Administrador</option><option>Consulta</option></select></div>
     <div><label>Situação</label><select id="uAtivo"><option value="1">Ativo</option><option value="0">Desativado</option></select></div></div>
+    <label style="display:flex;gap:8px;align-items:center;color:var(--tx);margin:12px 0 4px"><input type="checkbox" id="uConv" checked style="width:22px;min-height:22px"> Enviar e-mail com o link de acesso e como instalar no celular</label>
+    <p class="mut" style="margin:0 0 8px">O e-mail sai da conta dona do sistema e <b>não leva o PIN</b>: passe o PIN provisório à parte (WhatsApp ou pessoalmente).</p>
     <p class="mut">A pessoa entra com o e-mail (ou o nome) e o PIN. <b>Administrador</b> também cadastra pessoas e exporta dados; <b>Técnico</b> lança manejos; <b>Consulta</b> só vê. <b>Técnico</b> não edita genealogia, não reverte baixa e não importa. "Acesso à planilha" compartilha só a planilha (o servidor e os backups não). O normal é ninguém precisar: tudo se faz pelo app. Para trocar o PIN de alguém, salve a mesma pessoa com o PIN novo; cada um também pode trocar o próprio em Mais → Trocar meu PIN.</p>
     <button class="btn acc w" onclick="salvarUs()">Salvar pessoa</button></div>
     <h3>Cadastrados</h3><div class="card" id="listaUs"><p class="mut">${cfg.url ? 'Carregando…' : 'Configure o servidor para cadastrar pessoas.'}</p></div>`;
@@ -1206,15 +1208,15 @@ async function telaUsuarios(acao) {
 function desenharUs() {
   $('listaUs').innerHTML = (listaUs || []).length ? `<table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th></tr>${listaUs.map((u, i) => `<tr onclick="editarUs(${i})" style="cursor:pointer"><td>${esc(u.nome)}</td><td>${esc(u.email || '—')}</td><td>${esc(u.perfil)}</td><td>${u.ativo ? 'Ativo' : '<span class="tag bad">Desativado</span>'}</td></tr>`).join('')}</table><p class="mut">Toque numa pessoa para alterar.</p>` : '<p class="mut">Ninguém cadastrado ainda. Comece por você, como Administrador.</p>';
 }
-function editarUs(i) { const u = listaUs[i]; $('uNome').value = u.nome; $('uEmail').value = u.email || ''; $('uPerfil').value = u.perfil; $('uAtivo').value = u.ativo ? 1 : 0; $('uPin').focus(); }
+function editarUs(i) { const u = listaUs[i]; $('uNome').value = u.nome; $('uEmail').value = u.email || ''; $('uPerfil').value = u.perfil; $('uAtivo').value = u.ativo ? 1 : 0; $('uConv').checked = false; $('uPin').focus(); toast('Editando ' + u.nome + '. Para reenviar o e-mail de acesso, marque a opção e salve.'); }
 async function salvarUs() {
   try {
-    const d = { nome: v('uNome'), email: v('uEmail'), pin: v('uPin'), perfil: v('uPerfil'), ativo: v('uAtivo') === '1', acessoPlanilha: v('uPlan') };
+    const d = { nome: v('uNome'), email: v('uEmail'), pin: v('uPin'), perfil: v('uPerfil'), ativo: v('uAtivo') === '1', acessoPlanilha: v('uPlan'), convite: $('uConv').checked };
     if (!d.nome) throw new Error('Informe o nome.');
     const r = await chamar({ ...auth(), acao: 'usuario', dados: d });
     if (!r.ok) throw new Error(r.erro);
     listaUs = r.usuarios; desenharUs(); $('uNome').value = ''; $('uPin').value = ''; $('uEmail').value = '';
-    toast('Pessoa salva.' + (r.compartilhado ? ' Planilha compartilhada com ' + d.email + '.' : ''), 'ok');
+    toast('Pessoa salva.' + (r.convite ? ' E-mail com o link enviado para ' + d.email + '.' : '') + (r.compartilhado ? ' Planilha compartilhada.' : '') + (d.pin ? ' Agora passe o PIN provisório à pessoa.' : ''), 'ok');
   } catch (e) { toast(e.message, 'err'); }
 }
 
