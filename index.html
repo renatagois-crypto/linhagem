@@ -1056,8 +1056,8 @@ function telaCruzamento() {
     const disp = {}; Object.values(S.lotes).forEach(l => disp[l.doador] = (disp[l.doador] || 0) + (l.disp || 0));
     const machos = Object.values(S.animais).filter(m => m.sexo === 'M' && (ativo(m) || disp[m.id])).map(m => ({ m, F: coancestria(S, m.id, f.id, c), d: disp[m.id] || 0 }))
       .sort((a, b) => a.F - b.F || b.d - a.d);
-    lista = `<h3>Machos para a fêmea …${esc(f.chip.slice(-6))}</h3><p class="mut">Do menor para o maior parentesco. F do filho acima de 6,25% (cruzamento entre primos ou mais próximo) aparece em vermelho.</p>
-      <div class="card"><table><tr><th>Macho</th><th>Safra</th><th>F do filho</th><th>Doses</th></tr>${machos.map(x => `<tr><td>${linkAn(x.m.id)}</td><td>${esc(x.m.safra || '—')}</td><td>${x.F > 0.0625 ? '<span class="tag bad">' + fmtF(x.F) + '</span>' : fmtF(x.F)}</td><td>${x.d || '—'}</td></tr>`).join('') || '<tr><td colspan="4" class="mut">Nenhum macho disponível.</td></tr>'}</table></div>`;
+    lista = `<h3>Machos para a fêmea …${esc(f.chip.slice(-6))}</h3><p class="mut">Do menor para o maior parentesco. F do filho a partir de 6,25% (primos de primeiro grau ou parentesco mais próximo) aparece em vermelho. Se faltam pais ou avós cadastrados, o F pode sair menor que o real.</p>
+      <div class="card"><table><tr><th>Macho</th><th>Safra</th><th>F do filho</th><th>Doses</th></tr>${machos.map(x => `<tr><td>${linkAn(x.m.id)}</td><td>${esc(x.m.safra || '—')}</td><td>${x.F >= 0.0625 - 1e-9 ? '<span class="tag bad">' + fmtF(x.F) + '</span>' : fmtF(x.F)}</td><td>${x.d || '—'}</td></tr>`).join('') || '<tr><td colspan="4" class="mut">Nenhum macho disponível.</td></tr>'}</table></div>`;
   }
   $('main').innerHTML = `<h2>Simular cruzamento</h2>
     <div class="card"><p class="mut" style="margin-top:0">Escolha a fêmea. O sistema calcula, pelo pedigree registrado, o parentesco com cada macho e a endogamia (F) que o filho teria.</p>
