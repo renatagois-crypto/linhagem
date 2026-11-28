@@ -3,6 +3,23 @@ var INATIVOS = ['Óbito', 'Descartado', 'Transferido'];
 var VIVEIRO_BLOQ = ['Inativo', 'Vazio sanitário'];
 var BAIXAS = { 'Óbito': 'Óbito', 'Descarte': 'Descartado', 'Transferência externa': 'Transferido' };
 
+// PIN: só números, de 6 a 8 dígitos (PINs antigos de 4 ou 5 continuam entrando, mas o novo precisa ter 6+)
+var PIN_RE = /^\d{6,8}$/;
+// tipos de lançamento que só o administrador faz
+var SO_ADMIN = { viveiro: 1, caneca: 1, editar_animal: 1, sugestao_status: 1 };
+var ANULAVEIS = { atividade: 1, descartar_doses: 1, mover_doses: 1, animal_novo: 1, editar_animal: 1 };
+var PRAZO_ANULAR_H = 48; // técnico anula o próprio lançamento em até 48 h; administrador anula qualquer um
+// Confere se o perfil pode fazer este lançamento. Devolve '' se pode, ou a mensagem do motivo.
+function podeLancar(perfil, ev) {
+  perfil = perfil || 'Técnico';
+  if (ev.tipo === 'sugestao') return ''; // todos podem mandar melhorias e correções
+  if (perfil === 'Consulta') return 'Seu perfil é só de consulta: não pode lançar dados.';
+  if (perfil === 'Administrador') return '';
+  if (SO_ADMIN[ev.tipo]) return 'Só o administrador pode ' + ({ viveiro: 'cadastrar ou editar viveiros', caneca: 'cadastrar ou editar canecas', editar_animal: 'editar dados, genealogia ou reverter baixa de animais', sugestao_status: 'mudar a situação das sugestões' })[ev.tipo] + '.';
+  if (ev.p && (ev.p.importado || ev.p.obs === 'importado')) return 'Só o administrador pode importar planilhas.';
+  return '';
+}
+
 function novoEstado() {
   return { animais: {}, viveiros: {}, canecas: {}, lotes: {}, atividades: [], movs: [], sugestoes: [], usados: {} };
 }
@@ -230,6 +247,17 @@ function aplicar(s, ev) {
       var de = s.canecas[l3.caneca], para = s.canecas[p.caneca];
       l3.caneca = p.caneca;
       s.atividades.push({ id: ev.uid, data: p.data || ev.ts, ts: ev.ts, animal: l3.doador, tipo: 'Movimentação de doses', resumo: 'B' + de.botijao + '/C' + de.caneca + ' → B' + para.botijao + '/C' + para.caneca, dados: { lote: l3.id }, origem: '', destino: '', user: ev.user || '', obs: '' });
+      break;
+    }
+    case 'anular': {
+      // o servidor refaz tudo a partir do registro de eventos sem o lançamento anulado;
+      // aqui só fica o registro da anulação (e, no aparelho, a marca até sincronizar)
+      if (!p.alvo) erro('Informe o lançamento a anular.');
+      if (!p.motivo) erro('Informe o motivo da anulação.');
+      var alv = s.atividades.filter(function (x) { return x.id === p.alvo; })[0];
+      if (alv && alv.anulada) erro('Esse lançamento já foi anulado.');
+      if (alv) alv.anulada = true;
+      s.atividades.push({ id: ev.uid, data: ev.ts, ts: ev.ts, animal: p.animal || '', tipo: 'Anulação', resumo: 'Anulado: ' + (p.alvoTipo || 'lançamento') + (p.alvoResumo ? ' (' + p.alvoResumo + ')' : '') + ' · ' + p.motivo, dados: { alvo: p.alvo }, origem: '', destino: '', user: ev.user || '', obs: p.motivo });
       break;
     }
     case 'sugestao': {

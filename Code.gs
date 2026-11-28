@@ -3,6 +3,23 @@ var INATIVOS = ['Óbito', 'Descartado', 'Transferido'];
 var VIVEIRO_BLOQ = ['Inativo', 'Vazio sanitário'];
 var BAIXAS = { 'Óbito': 'Óbito', 'Descarte': 'Descartado', 'Transferência externa': 'Transferido' };
 
+// PIN: só números, de 6 a 8 dígitos (PINs antigos de 4 ou 5 continuam entrando, mas o novo precisa ter 6+)
+var PIN_RE = /^\d{6,8}$/;
+// tipos de lançamento que só o administrador faz
+var SO_ADMIN = { viveiro: 1, caneca: 1, editar_animal: 1, sugestao_status: 1 };
+var ANULAVEIS = { atividade: 1, descartar_doses: 1, mover_doses: 1, animal_novo: 1, editar_animal: 1 };
+var PRAZO_ANULAR_H = 48; // técnico anula o próprio lançamento em até 48 h; administrador anula qualquer um
+// Confere se o perfil pode fazer este lançamento. Devolve '' se pode, ou a mensagem do motivo.
+function podeLancar(perfil, ev) {
+  perfil = perfil || 'Técnico';
+  if (ev.tipo === 'sugestao') return ''; // todos podem mandar melhorias e correções
+  if (perfil === 'Consulta') return 'Seu perfil é só de consulta: não pode lançar dados.';
+  if (perfil === 'Administrador') return '';
+  if (SO_ADMIN[ev.tipo]) return 'Só o administrador pode ' + ({ viveiro: 'cadastrar ou editar viveiros', caneca: 'cadastrar ou editar canecas', editar_animal: 'editar dados, genealogia ou reverter baixa de animais', sugestao_status: 'mudar a situação das sugestões' })[ev.tipo] + '.';
+  if (ev.p && (ev.p.importado || ev.p.obs === 'importado')) return 'Só o administrador pode importar planilhas.';
+  return '';
+}
+
 function novoEstado() {
   return { animais: {}, viveiros: {}, canecas: {}, lotes: {}, atividades: [], movs: [], sugestoes: [], usados: {} };
 }
@@ -232,6 +249,17 @@ function aplicar(s, ev) {
       s.atividades.push({ id: ev.uid, data: p.data || ev.ts, ts: ev.ts, animal: l3.doador, tipo: 'Movimentação de doses', resumo: 'B' + de.botijao + '/C' + de.caneca + ' → B' + para.botijao + '/C' + para.caneca, dados: { lote: l3.id }, origem: '', destino: '', user: ev.user || '', obs: '' });
       break;
     }
+    case 'anular': {
+      // o servidor refaz tudo a partir do registro de eventos sem o lançamento anulado;
+      // aqui só fica o registro da anulação (e, no aparelho, a marca até sincronizar)
+      if (!p.alvo) erro('Informe o lançamento a anular.');
+      if (!p.motivo) erro('Informe o motivo da anulação.');
+      var alv = s.atividades.filter(function (x) { return x.id === p.alvo; })[0];
+      if (alv && alv.anulada) erro('Esse lançamento já foi anulado.');
+      if (alv) alv.anulada = true;
+      s.atividades.push({ id: ev.uid, data: ev.ts, ts: ev.ts, animal: p.animal || '', tipo: 'Anulação', resumo: 'Anulado: ' + (p.alvoTipo || 'lançamento') + (p.alvoResumo ? ' (' + p.alvoResumo + ')' : '') + ' · ' + p.motivo, dados: { alvo: p.alvo }, origem: '', destino: '', user: ev.user || '', obs: p.motivo });
+      break;
+    }
     case 'sugestao': {
       if (!p.texto) erro('Descreva a melhoria ou correção.');
       s.sugestoes = s.sugestoes || [];
@@ -353,6 +381,9 @@ function carregar() {
   linhas('Movimentacoes').forEach(function (r) { s.movs.push({ id: r.id, animal: r.animal_id, data: r.data, origem: r.origem_id, destino: r.destino_id, motivo: r.motivo, user: r.responsavel }); });
   linhas('Sugestoes').forEach(function (r) { s.sugestoes.push({ id: r.id, data: r.data, user: r.usuario, tipo: r.tipo, tela: r.tela, texto: r.texto, status: r.status, resposta: r.resposta }); });
   linhas('Eventos').forEach(function (r) { if (r.resultado === 'ok') s.usados[r.uid] = 1; });
+  s.atividades.forEach(function (a) { s.usados[a.id] = 1; });
+  Object.keys(s.lotes).forEach(function (k) { s.usados[k] = 1; });
+  s.sugestoes.forEach(function (x) { s.usados[x.id] = 1; });
   return s;
 }
 
@@ -384,6 +415,9 @@ function salvar(s, nAtiv, nMov) {
   var vc = function (id) { return id && s.viveiros[id] ? s.viveiros[id].codigo : ''; };
   var ch = function (id) { return id && s.animais[id] ? s.animais[id].chip : ''; };
   var t = function (x) { return x == null ? '' : String(x); };
+  anexar('Atividades', s.atividades.slice(nAtiv).map(function (a) {
+    return [a.id, a.data, a.ts, a.animal, ch(a.animal), a.tipo, a.resumo, a.origem, a.destino, vc(a.origem), vc(a.destino), a.user, a.obs, JSON.stringify(a.dados)];
+  }));
   gravarTudo('Viveiros', Object.keys(s.viveiros).map(function (k) { var v = s.viveiros[k]; return [v.id, v.codigo, v.nome, v.tipo, t(v.cap), t(v.capKg), v.status]; }));
   gravarTudo('Canecas', Object.keys(s.canecas).map(function (k) { var c = s.canecas[k]; return [c.id, c.botijao, c.caneca, c.cor, t(c.cap), c.status]; }));
   gravarTudo('Animais', Object.keys(s.animais).map(function (k) {
@@ -395,26 +429,40 @@ function salvar(s, nAtiv, nMov) {
     return [l.id, l.doador, ch(l.doador), l.data, l.cor, l.caneca, t(c.botijao), t(c.caneca), t(l.ini), t(l.disp), l.status];
   }));
   gravarTudo('Sugestoes', (s.sugestoes || []).map(function (x) { return [x.id, x.data, x.user, x.tipo, x.tela, x.texto, x.status, t(x.resposta)]; }));
-  anexar('Atividades', s.atividades.slice(nAtiv).map(function (a) {
-    return [a.id, a.data, a.ts, a.animal, ch(a.animal), a.tipo, a.resumo, a.origem, a.destino, vc(a.origem), vc(a.destino), a.user, a.obs, JSON.stringify(a.dados)];
-  }));
   anexar('Movimentacoes', s.movs.slice(nMov).map(function (m) {
     return [m.id, m.animal, ch(m.animal), m.data, m.origem, m.destino, vc(m.origem), vc(m.destino), m.motivo, m.user];
   }));
 }
 
-// Recuperação: reconstrói todas as abas a partir do registro de Eventos (rodar manualmente no editor, se precisar)
-function reconstruirDosEventos() {
-  var evs = linhas('Eventos').filter(function (r) { return r.resultado === 'ok' && r.tipo !== 'usuario'; });
-  var s = novoEstado(), falhas = 0;
-  evs.forEach(function (r) {
+// ----- Registro de eventos: é a fonte da verdade. Daqui dá para refazer todas as abas. -----
+function eventosOk() {
+  return linhas('Eventos').filter(function (r) { return r.resultado === 'ok' && r.tipo !== 'usuario'; }).map(function (r) {
     var p = {}; try { p = JSON.parse(r.json || '{}'); } catch (e) {}
-    try { aplicar(s, { uid: r.uid, tipo: r.tipo, ts: r.registrado_em, user: r.usuario, p: p }); } catch (e) { falhas++; }
+    return { uid: r.uid, tipo: r.tipo, ts: r.registrado_em, user: r.usuario, p: p };
   });
+}
+// refaz o estado aplicando os eventos em ordem, pulando os anulados
+function refazer(evs) {
+  var anulados = {};
+  evs.forEach(function (e) { if (e.tipo === 'anular' && e.p.alvo) anulados[e.p.alvo] = 1; });
+  var s = novoEstado(), falhas = [];
+  evs.forEach(function (e) {
+    if (anulados[e.uid]) return;
+    try { aplicar(s, e); } catch (err) { falhas.push({ uid: e.uid, tipo: e.tipo, erro: err.message }); }
+  });
+  return { s: s, falhas: falhas };
+}
+// regrava todas as abas a partir de um estado refeito
+function regravarTudo(s) {
   ORIG = {};
   ['Atividades', 'Movimentacoes'].forEach(function (nome) { var sh = planilha().getSheetByName(nome); if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, ABAS[nome].length).clearContent(); });
   salvar(s, 0, 0);
-  return 'Reconstruído a partir de ' + evs.length + ' eventos (' + falhas + ' com erro).';
+}
+// Recuperação: reconstrói todas as abas a partir do registro de Eventos (roda sozinho se uma gravação foi interrompida)
+function reconstruirDosEventos() {
+  var evs = eventosOk(), r = refazer(evs);
+  regravarTudo(r.s);
+  return 'Reconstruído a partir de ' + evs.length + ' eventos (' + r.falhas.length + ' com erro).';
 }
 
 function resposta(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
@@ -425,6 +473,8 @@ function checarChave(k) {
 }
 
 function usuarios() { return linhas('Usuarios').filter(function (u) { return u.nome && u.ativo !== 'Não'; }); }
+function ninguemCadastrado() { return !linhas('Usuarios').some(function (u) { return u.nome; }); }
+function chaveNome(x) { return String(x || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
 
 // ----- PIN protegido: guardado só como hash (SHA-256 com sal secreto), nunca em texto -----
 function sal() {
@@ -436,46 +486,59 @@ function hashPin(nome, pin) {
   var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sal() + '|' + String(nome).trim().toLowerCase() + '|' + String(pin));
   return Utilities.base64Encode(b);
 }
-// ----- bloqueio: 5 PINs errados seguidos bloqueiam a pessoa por 15 minutos -----
+// ----- sessão: o celular guarda um token de 30 dias, nunca o PIN. Trocar o PIN encerra as sessões antigas. -----
 function novoToken(u) {
   var tok = Utilities.getUuid() + Utilities.getUuid(), pr = PropertiesService.getScriptProperties();
-  pr.setProperty('TOK_' + hashPin('tok', tok), JSON.stringify({ nome: u.nome, exp: Date.now() + 30 * 864e5 }));
-  // limpa sessões vencidas
+  pr.setProperty('TOK_' + hashPin('tok', tok), JSON.stringify({ nome: u.nome, exp: Date.now() + 30 * 864e5, pv: String(u.pin_hash || '').slice(0, 12) }));
   var todas = pr.getProperties(); Object.keys(todas).forEach(function (k) { if (k.indexOf('TOK_') === 0) { try { if (JSON.parse(todas[k]).exp < Date.now()) pr.deleteProperty(k); } catch (e) { pr.deleteProperty(k); } } });
   return tok;
 }
+function acharUsuario(us, quem) {
+  quem = chaveNome(quem);
+  return us.filter(function (x) { return chaveNome(x.nome) === quem || (x.email && x.email.toLowerCase() === quem); })[0];
+}
+// ----- bloqueio: 5 PINs errados seguidos bloqueiam a pessoa por 15 minutos (conta pela pessoa, não pelo que foi digitado) -----
 function autenticar(body) {
-  var us = usuarios();
-  if (body.token && us.length) { // sessão: o celular guarda um token de 30 dias, não o PIN
-    var pr = PropertiesService.getScriptProperties(), sess = pr.getProperty('TOK_' + hashPin('tok', body.token));
+  if (body.token) {
+    var us0 = usuarios(), pr = PropertiesService.getScriptProperties(), sess = pr.getProperty('TOK_' + hashPin('tok', body.token));
     var d = sess ? JSON.parse(sess) : null;
-    var ut = d && d.exp > Date.now() ? us.filter(function (x) { return x.nome.toLowerCase() === d.nome.toLowerCase(); })[0] : null;
-    if (ut) return { nome: ut.nome, perfil: ut.perfil || 'Técnico', email: ut.email || '' };
+    var ut = d && d.exp > Date.now() ? acharUsuario(us0, d.nome) : null;
+    if (ut && d.pv && d.pv !== String(ut.pin_hash).slice(0, 12)) ut = null; // PIN trocado depois do login
     if (!ut) throw new Error('Sessão encerrada. Entre de novo com seu PIN.');
-    return { nome: ut.nome, perfil: ut.perfil || 'Técnico' };
+    return { nome: ut.nome, perfil: ut.perfil || 'Técnico', email: ut.email || '' };
   }
-  if (!us.length) return { nome: body.user || 'Administrador', perfil: 'Administrador', inicial: true }; // primeiro acesso: quem entra vira administrador
-  var cache = CacheService.getScriptCache(), k = 'falhas_' + String(body.user || '').toLowerCase(), n = parseInt(cache.get(k) || '0', 10);
+  if (ninguemCadastrado()) {
+    // primeiríssimo acesso: só cria o administrador se vierem nome, e-mail e PIN — e já grava, fechando a porta
+    var c = body.criarAdmin;
+    if (!c) { var e0 = new Error('Primeiro acesso: ninguém cadastrado ainda.'); e0.primeiro = true; throw e0; }
+    salvarUsuario({ nome: c.nome, email: c.email, pin: c.pin, perfil: 'Administrador', ativo: true, exigirEmail: true }, c.nome, true);
+    var novo = acharUsuario(usuarios(), c.nome);
+    return { nome: novo.nome, perfil: 'Administrador', email: novo.email, pin_hash: novo.pin_hash };
+  }
+  var us = usuarios(), u = acharUsuario(us, body.user);
+  var cache = CacheService.getScriptCache(), k = 'falhas_' + (u ? chaveNome(u.nome) : chaveNome(body.user).replace(/\s/g, '')), n = parseInt(cache.get(k) || '0', 10);
   if (n >= 5) throw new Error('Muitas tentativas com PIN errado. Aguarde 15 minutos.');
-  var quem = String(body.user || '').trim().toLowerCase(); // entra pelo nome ou pelo e-mail
-  var u = us.filter(function (x) { return x.nome.toLowerCase() === quem || (x.email && x.email.toLowerCase() === quem); })[0];
   if (!u || u.pin_hash !== hashPin(u.nome, body.pin)) { cache.put(k, String(n + 1), 900); throw new Error('Usuário ou PIN inválido.'); }
   cache.remove(k);
-  return { nome: u.nome, perfil: u.perfil || 'Técnico', email: u.email || '', trocarPin: u.pin_provisorio === 'Sim' };
+  return { nome: u.nome, perfil: u.perfil || 'Técnico', email: u.email || '', trocarPin: u.pin_provisorio === 'Sim', pin_hash: u.pin_hash };
 }
-function salvarUsuario(d, quem) {
-  if (!d.nome) throw new Error('Informe o nome.');
+function salvarUsuario(d, quem, primeiro) {
+  if (!d.nome || !String(d.nome).trim()) throw new Error('Informe o nome.');
   var sh = planilha().getSheetByName('Usuarios'), todos = linhas('Usuarios');
-  var i = -1; todos.forEach(function (u, j) { if (u.nome.toLowerCase() === String(d.nome).trim().toLowerCase()) i = j; });
+  var nome = String(d.nome).replace(/\s+/g, ' ').trim();
+  var i = -1; todos.forEach(function (u, j) { if (chaveNome(u.nome) === chaveNome(nome)) i = j; });
   var atual = i >= 0 ? todos[i] : null;
-  if (!atual && !/^\d{4,8}$/.test(String(d.pin || ''))) throw new Error('O PIN precisa ter de 4 a 8 números.');
-  if (d.pin && !/^\d{4,8}$/.test(String(d.pin))) throw new Error('O PIN precisa ter de 4 a 8 números.');
+  if (!atual && !PIN_RE.test(String(d.pin || ''))) throw new Error('O PIN precisa ter de 6 a 8 números.');
+  if (d.pin && !PIN_RE.test(String(d.pin))) throw new Error('O PIN precisa ter de 6 a 8 números.');
   var email = String(d.email !== undefined ? d.email : (atual && atual.email) || '').trim().toLowerCase();
+  if (d.exigirEmail && !email) throw new Error('Informe seu e-mail.');
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('E-mail inválido.');
   if (email && todos.some(function (u, j) { return j !== i && u.email && u.email.toLowerCase() === email; })) throw new Error('Esse e-mail já está em outra pessoa.');
-  var linha = [String(d.nome).trim(), d.pin ? hashPin(String(d.nome).trim(), d.pin) : atual.pin_hash, d.perfil || (atual && atual.perfil) || 'Técnico', d.ativo === false ? 'Não' : 'Sim', atual ? atual.criado_em : new Date().toISOString(), email,
+  if (atual && chaveNome(atual.nome) === chaveNome(quem) && d.perfil && d.perfil !== 'Administrador' && !primeiro) throw new Error('Você não pode tirar o seu próprio perfil de administrador.');
+  if (atual && chaveNome(atual.nome) === chaveNome(quem) && d.ativo === false) throw new Error('Você não pode desativar a si mesmo.');
+  var linha = [nome, d.pin ? hashPin(nome, d.pin) : atual.pin_hash, d.perfil || (atual && atual.perfil) || 'Técnico', d.ativo === false ? 'Não' : 'Sim', atual ? atual.criado_em : new Date().toISOString(), email,
     // PIN definido pelo administrador para outra pessoa é provisório: ela troca no primeiro acesso
-    d.pin ? (String(d.nome).trim().toLowerCase() === String(quem).toLowerCase() ? 'Não' : 'Sim') : ((atual && atual.pin_provisorio) || 'Não')];
+    d.pin ? (chaveNome(nome) === chaveNome(quem) ? 'Não' : 'Sim') : ((atual && atual.pin_provisorio) || 'Não')];
   if (i >= 0) sh.getRange(i + 2, 1, 1, linha.length).setNumberFormat('@').setValues([linha]);
   else anexar('Usuarios', [linha]);
   var compartilhado = '';
@@ -483,31 +546,43 @@ function salvarUsuario(d, quem) {
   anexar('Eventos', [[Utilities.getUuid(), new Date().toISOString(), new Date().toISOString(), quem, 'usuario', 'ok', JSON.stringify({ nome: linha[0], email: email, perfil: linha[2], ativo: linha[3], pinAlterado: !!d.pin, planilha: compartilhado })]]);
   return compartilhado;
 }
-// dá acesso à pasta Linhagem (planilha + backups) no Google Drive para o e-mail informado
+// dá acesso só à planilha (não à pasta: o servidor e os backups ficam de fora). Padrão: só ver.
 function compartilharPlanilha(email, nivel) {
-  var pr = PropertiesService.getScriptProperties(), alvo;
-  try { manutencaoDiaria(); } catch (e) {}
-  alvo = pr.getProperty('PASTA_ID') ? DriveApp.getFolderById(pr.getProperty('PASTA_ID')) : DriveApp.getFileById(planilha().getId());
-  if (nivel === 'editar') alvo.addEditor(email); else alvo.addViewer(email);
-  return nivel;
+  var arq = DriveApp.getFileById(planilha().getId());
+  if (nivel === 'editar') arq.addEditor(email); else arq.addViewer(email);
+  try { protegerAbas(); } catch (e) {}
+  return nivel === 'editar' ? 'editar' : 'ver';
+}
+// abas de pessoas e de registro de eventos: só a dona da planilha edita (quem tem acesso de edição não mexe)
+function protegerAbas() {
+  ['Usuarios', 'Eventos'].forEach(function (nome) {
+    var sh = planilha().getSheetByName(nome);
+    if (!sh) return;
+    var ps = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+    var p = ps.length ? ps[0] : sh.protect().setDescription('Linhagem: só o sistema grava aqui');
+    var ed = p.getEditors(); if (ed.length) p.removeEditors(ed);
+    if (p.canDomainEdit()) p.setDomainEdit(false);
+  });
 }
 function trocarMeuPin(u, d) {
-  if (!/^\d{4,8}$/.test(String(d.pinNovo || ''))) throw new Error('O PIN novo precisa ter de 4 a 8 números.');
+  if (!PIN_RE.test(String(d.pinNovo || ''))) throw new Error('O PIN novo precisa ter de 6 a 8 números.');
   var todos = linhas('Usuarios'), i = -1;
-  todos.forEach(function (x, j) { if (x.nome === u.nome) i = j; });
+  todos.forEach(function (x, j) { if (chaveNome(x.nome) === chaveNome(u.nome)) i = j; });
   if (i < 0) throw new Error('Pessoa não encontrada.');
-  if (todos[i].pin_hash !== hashPin(u.nome, d.pinAtual)) throw new Error('PIN atual incorreto.');
+  if (todos[i].pin_hash !== hashPin(todos[i].nome, d.pinAtual)) throw new Error('PIN atual incorreto.');
   if (d.pinNovo === d.pinAtual) throw new Error('O PIN novo precisa ser diferente do atual.');
-  var sh = planilha().getSheetByName('Usuarios');
-  sh.getRange(i + 2, 2).setValue(hashPin(u.nome, d.pinNovo));
+  var sh = planilha().getSheetByName('Usuarios'), h = hashPin(todos[i].nome, d.pinNovo);
+  sh.getRange(i + 2, 2).setValue(h);
   sh.getRange(i + 2, ABAS.Usuarios.indexOf('pin_provisorio') + 1).setValue('Não');
+  return novoToken({ nome: todos[i].nome, pin_hash: h }); // as outras sessões dessa pessoa deixam de valer
 }
 function listaUsuarios() { return linhas('Usuarios').map(function (u) { return { nome: u.nome, email: u.email || '', perfil: u.perfil, ativo: u.ativo !== 'Não' }; }); }
 
-// ----- manutenção diária: pasta do projeto e backup (30 últimos dias) -----
+// ----- manutenção diária: pasta do projeto, backup (30 últimos dias) e cópia mensal por e-mail -----
 function manutencaoDiaria() {
   var pr = PropertiesService.getScriptProperties(), hoje = Utilities.formatDate(new Date(), 'America/Cuiaba', 'yyyy-MM-dd');
   if (pr.getProperty('ULTIMA_MANUTENCAO') === hoje) return;
+  pr.setProperty('ULTIMA_MANUTENCAO', hoje); // marca antes: se algo abaixo falhar, não trava os lançamentos do dia
   var ss = planilha(), arq = DriveApp.getFileById(ss.getId());
   var pasta = pr.getProperty('PASTA_ID') ? DriveApp.getFolderById(pr.getProperty('PASTA_ID')) : null;
   if (!pasta) {
@@ -515,15 +590,40 @@ function manutencaoDiaria() {
     pasta = it.hasNext() ? it.next() : DriveApp.getRootFolder().createFolder('Linhagem');
     pr.setProperty('PASTA_ID', pasta.getId());
     arq.moveTo(pasta);
-    try { DriveApp.getFileById(ScriptApp.getScriptId()).moveTo(pasta); } catch (e) {}
   }
+  // o servidor fica numa subpasta própria, que nunca é compartilhada
+  if (!pr.getProperty('SCRIPT_SEPARADO')) {
+    try {
+      var itS = pasta.getFoldersByName('Servidor (não compartilhar)'), ps = itS.hasNext() ? itS.next() : pasta.createFolder('Servidor (não compartilhar)');
+      DriveApp.getFileById(ScriptApp.getScriptId()).moveTo(ps);
+    } catch (e) {}
+    pr.setProperty('SCRIPT_SEPARADO', '1');
+  }
+  // backup roda todo dia sozinho, mesmo sem lançamento (gatilho de horário)
+  try {
+    if (!ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'manutencaoDiaria'; }))
+      ScriptApp.newTrigger('manutencaoDiaria').timeBased().everyDays(1).atHour(3).create();
+  } catch (e) {}
+  try { protegerAbas(); } catch (e) {}
   var itB = pasta.getFoldersByName('Backups'), backups = itB.hasNext() ? itB.next() : pasta.createFolder('Backups');
   arq.makeCopy('Linhagem — backup ' + hoje, backups);
   var lista = [], fs = backups.getFiles();
   while (fs.hasNext()) lista.push(fs.next());
   lista.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
   lista.slice(30).forEach(function (f) { f.setTrashed(true); });
-  pr.setProperty('ULTIMA_MANUTENCAO', hoje);
+  // uma vez por mês: cópia em Excel por e-mail para os administradores (fica fora do Drive)
+  var mes = hoje.slice(0, 7);
+  if (pr.getProperty('ULTIMO_ENVIO_MES') !== mes) {
+    try { enviarCopiaMensal(); pr.setProperty('ULTIMO_ENVIO_MES', mes); } catch (e) {}
+  }
+}
+function enviarCopiaMensal() {
+  var para = usuarios().filter(function (u) { return u.perfil === 'Administrador' && u.email; }).map(function (u) { return u.email; });
+  if (!para.length) return;
+  var url = 'https://docs.google.com/spreadsheets/d/' + planilha().getId() + '/export?format=xlsx';
+  var blob = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } }).getBlob()
+    .setName('Linhagem — cópia ' + Utilities.formatDate(new Date(), 'America/Cuiaba', 'yyyy-MM') + '.xlsx');
+  MailApp.sendEmail({ to: para.join(','), subject: 'Linhagem — cópia mensal dos dados', body: 'Cópia mensal automática da base do Linhagem (plantel e banco de sêmen), em Excel. Guarde este e-mail: é o backup fora do Google Drive.', attachments: [blob] });
 }
 
 function foto(s) {
@@ -531,38 +631,78 @@ function foto(s) {
   return { estado: s, usuarios: usuarios().map(function (u) { return { nome: u.nome, perfil: u.perfil }; }), em: new Date().toISOString() };
 }
 
+// GET só confirma que o servidor está no ar (os dados só saem com login)
 function doGet(e) {
-  try { checarChave(e.parameter.chave); return resposta({ ok: true, foto: foto(carregar()) }); }
+  try { checarChave(e.parameter.chave); return resposta({ ok: true, servidor: 'Linhagem', primeiroAcesso: ninguemCadastrado() }); }
   catch (err) { return resposta({ ok: false, erro: err.message }); }
+}
+
+// anulação: confere permissão e se nada depois depende do lançamento; devolve o estado refeito
+function anular(ev, u, todos) {
+  var alvo = todos.filter(function (x) { return x.uid === ev.p.alvo; })[0];
+  if (!alvo) throw new Error('Lançamento não encontrado no servidor (talvez ainda não tenha sido enviado).');
+  if (!ANULAVEIS[alvo.tipo]) throw new Error('Esse tipo de lançamento não pode ser anulado.');
+  if (todos.some(function (x) { return x.tipo === 'anular' && x.p.alvo === alvo.uid; })) throw new Error('Esse lançamento já foi anulado.');
+  if (u.perfil !== 'Administrador') {
+    if (chaveNome(alvo.user) !== chaveNome(u.nome)) throw new Error('Você só pode anular os seus próprios lançamentos. Peça ao administrador.');
+    if (Date.now() - new Date(alvo.ts).getTime() > PRAZO_ANULAR_H * 3600e3) throw new Error('Passou o prazo de ' + PRAZO_ANULAR_H + ' h para anular. Peça ao administrador.');
+  }
+  if (!ev.p.motivo) throw new Error('Informe o motivo da anulação.');
+  var antes = refazer(todos), depois = refazer(todos.concat([ev]));
+  var ja = {}; antes.falhas.forEach(function (f) { ja[f.uid] = 1; });
+  var novas = depois.falhas.filter(function (f) { return !ja[f.uid] && f.uid !== ev.uid; });
+  if (novas.length) throw new Error('Não dá para anular: há lançamentos posteriores que dependem dele (' + novas[0].tipo + ': ' + novas[0].erro + '). Anule esses primeiro.');
+  return depois.s;
 }
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
+  var inicio = Date.now();
   try {
     var body = JSON.parse(e.postData.contents);
     checarChave(body.chave);
-    var u = autenticar(body);
-    try { manutencaoDiaria(); } catch (e) {} // backup não pode impedir o lançamento
-    if (u.perfil === 'Consulta' && (body.eventos || []).length) throw new Error('Perfil de consulta não pode lançar dados.');
-    if (body.acao === 'meuPin') { trocarMeuPin(u, body.dados || {}); return resposta({ ok: true }); }
+    if (!planilha().getSheetByName('Usuarios') || !planilha().getSheetByName('Animais')) setup(); // primeira execução cria as abas
+    var u;
+    try { u = autenticar(body); }
+    catch (er) { return resposta({ ok: false, erro: er.message, primeiroAcesso: !!er.primeiro }); }
+    try { manutencaoDiaria(); } catch (e2) {} // backup não pode impedir o lançamento
+    if (body.acao === 'meuPin') { var tk = trocarMeuPin(u, body.dados || {}); return resposta({ ok: true, token: tk }); }
     if (body.acao === 'usuarios' || body.acao === 'usuario') {
       if (u.perfil !== 'Administrador') throw new Error('Só o administrador cadastra pessoas e PINs.');
       var comp = body.acao === 'usuario' ? salvarUsuario(body.dados || {}, u.nome) : '';
       return resposta({ ok: true, usuarios: listaUsuarios(), compartilhado: comp, planilhaUrl: planilha().getUrl() });
     }
     if (body.sair && body.token) { PropertiesService.getScriptProperties().deleteProperty('TOK_' + hashPin('tok', body.token)); return resposta({ ok: true }); }
-    if (body.login) return resposta({ ok: true, nome: u.nome, perfil: u.perfil, inicial: !!u.inicial, trocarPin: !!u.trocarPin, token: u.inicial ? '' : novoToken(u) });
-    body.user = u.nome;
-    var s = carregar(), nA = s.atividades.length, nM = s.movs.length, res = [], log = [], agora = new Date().toISOString();
+    if (body.login) return resposta({ ok: true, nome: u.nome, perfil: u.perfil, trocarPin: !!u.trocarPin, token: novoToken(u) });
+    var pr = PropertiesService.getScriptProperties();
+    // gravação anterior interrompida no meio: refaz tudo a partir do registro de eventos
+    if (pr.getProperty('GRAVANDO')) { try { reconstruirDosEventos(); } catch (e3) {} pr.deleteProperty('GRAVANDO'); }
+    var s = carregar(), nA = s.atividades.length, nM = s.movs.length, res = [], log = [], agora = new Date().toISOString(), refeito = false, todos = null, aceitos = [];
     (body.eventos || []).forEach(function (ev) {
-      ev.user = body.user || ev.user || '';
-      if (s.usados[ev.uid]) { res.push({ uid: ev.uid, ok: true }); return; } // já recebido antes (reenvio)
-      try { aplicar(s, ev); res.push({ uid: ev.uid, ok: true }); log.push([ev.uid, ev.ts, agora, ev.user, ev.tipo, 'ok', JSON.stringify(ev.p)]); }
-      catch (err) { res.push({ uid: ev.uid, ok: false, erro: err.message }); log.push([ev.uid, ev.ts, agora, ev.user, ev.tipo, 'recusado: ' + err.message, JSON.stringify(ev.p)]); }
+      if (Date.now() - inicio > 240000) return; // perto do limite de tempo do Google: o resto vai no próximo envio
+      ev.user = u.nome;
+      if (s.usados[ev.uid] || (ev.tipo === 'animal_novo' && ev.p && s.animais[ev.p.id] && log.every(function (l) { return l[0] !== ev.uid; }) && s.animais[ev.p.id].cadastro === ev.ts)) { res.push({ uid: ev.uid, ok: true }); return; } // já recebido antes (reenvio)
+      try {
+        var proib = podeLancar(u.perfil, ev);
+        if (proib) throw new Error(proib);
+        if (ev.tipo === 'anular') {
+          if (!todos) todos = eventosOk().concat(aceitos); // inclui o que já entrou neste mesmo envio
+          s = anular(ev, u, todos);
+          todos.push(ev); refeito = true;
+        } else {
+          aplicar(s, ev);
+          if (todos) todos.push(ev);
+        }
+        aceitos.push(ev);
+        res.push({ uid: ev.uid, ok: true }); log.push([ev.uid, ev.ts, agora, ev.user, ev.tipo, 'ok', JSON.stringify(ev.p)]);
+      } catch (err) { res.push({ uid: ev.uid, ok: false, erro: err.message }); log.push([ev.uid, ev.ts, agora, ev.user, ev.tipo, 'recusado: ' + err.message, JSON.stringify(ev.p)]); }
     });
-    salvar(s, nA, nM);
+    // ordem segura: primeiro o registro de eventos, depois as abas; se cair no meio, a marca GRAVANDO faz refazer tudo
+    pr.setProperty('GRAVANDO', agora);
     anexar('Eventos', log);
+    if (refeito) regravarTudo(s); else salvar(s, nA, nM);
+    pr.deleteProperty('GRAVANDO');
     return resposta({ ok: true, resultados: res, foto: foto(s) });
   } catch (err) {
     return resposta({ ok: false, erro: err.message });

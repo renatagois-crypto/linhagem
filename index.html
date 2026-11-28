@@ -87,11 +87,12 @@ th{color:var(--mut);font-weight:600;font-size:12px}
 a.lk{color:var(--pri);font-weight:600;cursor:pointer;text-decoration:none}
 details summary{cursor:pointer;color:var(--pri);font-weight:600;padding:6px 0}
 @media print{header,nav,.noprint{display:none!important}main{padding:0;max-width:none}.card{break-inside:avoid;border-color:#bbb}}
+.voltar{display:flex;justify-content:space-between;margin:-4px 0 6px}.voltar button{background:none;border:0;color:var(--pri);font:600 15px inherit;font-family:inherit;padding:8px 2px;min-height:40px;cursor:pointer}
 </style>
 </head>
 <body>
 <header>
-  <img src="logo.svg" alt="">
+  <img src="logo.svg" alt="" onclick="if(user)ir('inicio')" style="cursor:pointer" title="Início">
   <div class="t"><b id="hNome">Linhagem</b><small>Gestão de Plantel e Germoplasma</small></div>
   <button class="sync" id="syncBtn" onclick="sincronizar(true)">…</button>
 </header>
@@ -105,11 +106,31 @@ const LS = {
   get(k, d) { try { const v = localStorage.getItem('plantel_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('plantel_' + k, JSON.stringify(v)); } catch (e) { toast('A memória do aparelho está cheia. Sincronize assim que possível.', 'err'); } }
 };
+// Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
+const GRANDES = ['base', 'fila', 'recusados'];
+const IDB = {
+  db: null,
+  abrir() { return new Promise((ok, no) => { const r = indexedDB.open('linhagem', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => { this.db = r.result; ok(); }; r.onerror = () => no(r.error); }); },
+  ler(k) { return new Promise(ok => { try { const q = this.db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => ok(undefined); } catch (e) { ok(undefined); } }); },
+  gravar(k, v) { try { const t = this.db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.onerror = () => toast('Não consegui guardar no aparelho: ' + (t.error && t.error.message), 'err'); } catch (e) { LS.set(k, v); } }
+};
+async function carregarArmazenamento() {
+  try {
+    await IDB.abrir();
+    for (const k of GRANDES) {
+      let v = await IDB.ler(k);
+      if (v === undefined) { v = LS.get(k, undefined); if (v !== undefined) { IDB.gravar(k, v); try { localStorage.removeItem('plantel_' + k); } catch (e) {} } } // migra do armazenamento antigo
+      if (v !== undefined) { if (k === 'base') base = v; if (k === 'fila') fila = v; if (k === 'recusados') recusados = v; }
+    }
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  } catch (e) { IDB.db = null; } // sem IndexedDB: segue no localStorage
+}
+function guardarGrande(k, v) { if (IDB.db) IDB.gravar(k, v); else LS.set(k, v); }
 let cfg = LS.get('cfg', { url: '', chave: '', nome: 'Linhagem' });
 let user = LS.get('user', null);
-let base = LS.get('base', null);       // última cópia recebida do servidor
-let fila = LS.get('fila', []);         // lançamentos ainda não enviados
-let recusados = LS.get('recusados', []);
+let base = null;       // última cópia recebida do servidor
+let fila = [];         // lançamentos ainda não enviados
+let recusados = [];
 let S = novoEstado();
 let tela = 'inicio', telaArg = null;
 let syncDeNovo = false, sincronizando = false, ultimaSync = LS.get('ultimaSync', '');
@@ -127,11 +148,11 @@ function recalcular() {
   S.usados = S.usados || {};
   fila.forEach(ev => { try { aplicar(S, ev); delete ev._erro; } catch (e) { ev._erro = e.message; } });
 }
-function salvarLocal() { LS.set('fila', fila); LS.set('recusados', recusados); LS.set('base', base); }
+function salvarLocal() { guardarGrande('fila', fila); guardarGrande('recusados', recusados); guardarGrande('base', base); }
 
 // Registra um ou vários lançamentos: valida no aparelho, guarda na fila e tenta enviar
 function lancar(eventos) {
-  if (user && user.perfil === 'Consulta') throw new Error('Seu perfil é só de consulta: não pode lançar dados.');
+  for (const e of eventos) { const m = podeLancar(user && user.perfil, e); if (m) throw new Error(m); }
   const teste = clone(S);
   for (const ev of eventos) aplicar(teste, ev); // lança erro se alguma regra for violada
   fila.push(...eventos);
@@ -154,7 +175,9 @@ async function sincronizar(manual) {
   if (sincronizando) { syncDeNovo = true; return; } // termina o envio atual e envia de novo
   sincronizando = true; syncDeNovo = false; atualizarSync();
   try {
-    const enviar = fila.map(e => { const c = { ...e }; delete c._erro; return c; });
+    const enviar = fila.slice(0, 100).map(e => { const c = { ...e }; delete c._erro; return c; }); // em lotes: importações grandes não estouram o tempo do servidor
+    if (fila.length > 100) syncDeNovo = true;
+    if (!user || !user.token) { if (manual) toast('Entre com seu e-mail e PIN para sincronizar.'); return; }
     const r = await chamar({ ...auth(), eventos: enviar });
     if (!r.ok) { if (/Sessão encerrada/.test(r.erro)) { user = null; LS.set('user', null); render(); } throw new Error(r.erro); }
     const res = {}; (r.resultados || []).forEach(x => res[x.uid] = x);
@@ -192,7 +215,21 @@ function toast(msg, tipo) {
   const t = document.createElement('div'); t.className = 'toast ' + (tipo || ''); t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), tipo === 'err' ? 6000 : 3000);
 }
-function ir(t, arg) { if (t === 'lancar') { limparForm = true; L.data = hoje(); L.mudou = false; if (!arg) animalSel = null; } tela = t; telaArg = arg; render(); window.scrollTo(0, 0); }
+function ir(t, arg, semHistorico) {
+  if (t === 'lancar') { limparForm = true; L.data = hoje(); L.mudou = false; if (!arg) animalSel = null; }
+  tela = t; telaArg = arg;
+  // botão "voltar" do celular volta para a tela anterior do app, em vez de sair
+  if (!semHistorico) { try { history.pushState({ t, arg }, ''); } catch (e) {} }
+  render(); window.scrollTo(0, 0);
+}
+window.addEventListener('popstate', e => { if (!user) return; const st = e.state || { t: 'inicio' }; ir(st.t, st.arg, true); });
+// tela "de cima" de cada subtela: é para lá que o link Voltar leva
+function telaPai() {
+  if (tela === 'editar') return ['ficha', telaArg, 'Ficha do animal'];
+  if (tela === 'ficha') return ['animais', null, 'Animais'];
+  if (['viveiros', 'canecas', 'importar', 'pedigree', 'config', 'pendencias', 'painel', 'sugestoes', 'usuarios', 'sair', 'cruzamento', 'meupin'].includes(tela)) return ['mais', null, 'Mais'];
+  return null;
+}
 function viv(id) { const v = S.viveiros[id]; return v ? v.codigo : '—'; }
 function vivOpts(sel, filtro) {
   return '<option value="">Selecione…</option>' + Object.values(S.viveiros).filter(v => !filtro || VIVEIRO_BLOQ.indexOf(v.status) < 0)
@@ -245,6 +282,8 @@ function render() {
   renderNav(); atualizarSync();
   const f = { inicio: telaInicio, lancar: telaLancar, animais: telaAnimais, ficha: telaFicha, semen: telaSemen, mais: telaMais, viveiros: telaViveiros, canecas: telaCanecas, importar: telaImportar, pedigree: telaPedigree, config: telaConfig, pendencias: telaPendencias, painel: telaPainel, editar: telaEditar, sugestoes: telaSugestoes, usuarios: telaUsuarios, sair: telaSair, cruzamento: telaCruzamento, meupin: telaMeuPin }[tela];
   f(telaArg);
+  const pai = telaPai();
+  if (pai && !user.trocarPin) $('main').insertAdjacentHTML('afterbegin', `<div class="voltar noprint"><button onclick="ir('${pai[0]}'${pai[1] ? `,'${esc(pai[1])}'` : ''})">‹ ${pai[2]}</button><button onclick="ir('inicio')">Início</button></div>`);
 }
 
 // ===================== Login =====================
@@ -264,14 +303,39 @@ function telaLogin() {
 async function entrar() {
   const nome = $('lgNome').value.trim(), pin = $('lgPin').value.trim(); let perfil = '', inicial = false, token = '', nomeSrv = '', trocar = false;
   if (!nome) return toast('Informe seu nome.', 'err');
-  if (cfg.url && navigator.onLine) {
-    try { const r = await chamar({ chave: cfg.chave, user: nome, pin, login: true }); if (!r.ok) return toast(r.erro, 'err'); perfil = r.perfil; inicial = r.inicial; token = r.token; nomeSrv = r.nome; trocar = r.trocarPin; }
+  if (cfg.url && !navigator.onLine) return toast('Para entrar é preciso internet (só na primeira vez em cada aparelho).', 'err');
+  if (cfg.url) {
+    try { const r = await chamar({ chave: cfg.chave, user: nome, pin, login: true }); if (!r.ok) { if (r.primeiroAcesso) return telaPrimeiro(); return toast(r.erro, 'err'); } perfil = r.perfil; token = r.token; nomeSrv = r.nome; trocar = r.trocarPin; }
     catch (e) { return toast('Não consegui falar com o servidor: ' + e.message, 'err'); }
   }
   // com servidor: o celular guarda só um token de sessão (30 dias), nunca o PIN
   user = token ? { nome: nomeSrv || nome, token, perfil, trocarPin: !!trocar } : { nome, pin: cfg.url ? pin : '', perfil: perfil || 'Administrador' }; LS.set('user', user);
-  if (inicial) { toast('Primeiro acesso: cadastre você e a equipe com PIN.', 'ok'); ir('usuarios'); } else if (user.trocarPin) ir('meupin'); else ir('inicio');
+  if (user.trocarPin) ir('meupin'); else ir('inicio');
   sincronizar();
+}
+// Primeiríssimo acesso ao servidor (ninguém cadastrado): quem configura o sistema vira a administradora
+function telaPrimeiro() {
+  $('main').innerHTML = `<div class="card" style="max-width:440px;margin:20px auto">
+    <h2>Primeiro acesso</h2>
+    <p class="mut">Ainda não há ninguém cadastrado neste servidor. Crie a conta de <b>administrador</b>: depois, em Mais → Pessoas e PINs, você cadastra a equipe.</p>
+    <label>Seu nome</label><input id="pNome" autocomplete="name">
+    <label>Seu e-mail (Gmail)</label><input id="pEmail" type="email" autocapitalize="off" autocomplete="email">
+    <label>Crie um PIN (6 a 8 números)</label><input id="pPin" type="password" inputmode="numeric" autocomplete="new-password">
+    <label>Repita o PIN</label><input id="pPin2" type="password" inputmode="numeric" autocomplete="new-password">
+    <div style="height:14px"></div><button class="btn acc w" onclick="criarPrimeiro()">Criar minha conta</button>
+    <div style="height:8px"></div><button class="btn sec w" onclick="render()">Voltar</button></div>`;
+}
+async function criarPrimeiro() {
+  try {
+    const c = { nome: v('pNome'), email: v('pEmail'), pin: v('pPin') };
+    if (!c.nome || !c.email) throw new Error('Informe nome e e-mail.');
+    if (!PIN_RE.test(c.pin)) throw new Error('O PIN precisa ter de 6 a 8 números.');
+    if (c.pin !== v('pPin2')) throw new Error('Os dois PINs não conferem.');
+    const r = await chamar({ chave: cfg.chave, login: true, criarAdmin: c });
+    if (!r.ok) throw new Error(r.erro);
+    user = { nome: r.nome, token: r.token, perfil: r.perfil }; LS.set('user', user);
+    toast('Conta criada. Agora cadastre a equipe.', 'ok'); ir('usuarios'); sincronizar();
+  } catch (e) { toast(e.message, 'err'); }
 }
 function formServidor() {
   return `<label>Endereço do servidor (URL do Apps Script)</label><input id="cfUrl" value="${esc(cfg.url)}" placeholder="https://script.google.com/macros/s/…/exec">
@@ -284,7 +348,9 @@ async function salvarServidor() {
   try {
     const r = await fetch(cfg.url + '?chave=' + encodeURIComponent(cfg.chave)).then(x => x.json());
     if (!r.ok) throw new Error(r.erro);
-    base = r.foto; salvarLocal(); recalcular(); toast('Servidor conectado.', 'ok'); render();
+    toast('Servidor conectado.' + (r.primeiroAcesso ? ' Primeiro acesso: crie a conta de administrador.' : ''), 'ok');
+    if (r.primeiroAcesso) return telaPrimeiro();
+    render();
   } catch (e) { toast('Não consegui conectar: ' + e.message, 'err'); }
 }
 
@@ -463,7 +529,12 @@ function salvarLanc() {
     const mudou = L.sub === 'Mudança de viveiro' ? true : (L.sub === 'Outro manejo' && OUTROS.slice(5).includes(L.outro) ? false : L.mudou);
     if (mudou && !dest) throw new Error('Escolha o viveiro de destino.');
     let dados = {};
-    if (L.sub === 'Biometria') dados = { peso: v('bPeso'), ct: v('bCT'), cp: v('bCP'), altura: v('bAlt') };
+    if (L.sub === 'Biometria') {
+      dados = { peso: v('bPeso'), ct: v('bCT'), cp: v('bCP'), altura: v('bAlt') };
+      const p = num(dados.peso), u = ultimaBiometria(S, a.id);
+      if (p != null && (p < 5 || p > 40000) && !confirm('Peso de ' + p + ' g está fora do comum para tambaqui (o campo é em gramas). Confirmar mesmo assim?')) return;
+      if (p != null && u && u.dados.peso && Math.abs(p - u.dados.peso) / u.dados.peso > 0.5 && !confirm('O peso mudou mais de 50% desde a última biometria (' + u.dados.peso + ' g → ' + p + ' g). Confirmar?')) return;
+    }
     if (L.sub === 'Coleta de sêmen') { dados = { volume: v('sVol'), motilidade: v('sMot'), vigor: v('sVig'), conc: v('sConc'), diluidor: v('sDil'), doses: v('sDoses'), volDose: v('sVolD'), cor: v('sCor'), caneca: v('sCan') }; L.caneca = dados.caneca; }
     if (L.sub === 'Coleta de ovócitos') dados = { protocolo: v('oProt'), pesoDesova: v('oPeso'), fecundidade: v('oFec'), qualidade: v('oQual'), destinoDesova: v('oDest'), lote: v('oDest') === 'Fertilização' ? v('oLote') : '', dosesUsadas: v('oDoses'), macho: v('oDest') === 'Fertilização' ? v('oMacho') : '' };
     if (L.sub === 'Rechipagem') dados = { novoChip: v('rChip'), motivo: v('rMot') };
@@ -529,7 +600,7 @@ function telaFicha(id) {
       <div class="kpis"><div class="kpi"><b>${ini}</b><span>doses coletadas</span></div><div class="kpi"><b>${ini - disp}</b><span>usadas / descartadas</span></div><div class="kpi"><b>${disp}</b><span>disponíveis</span></div></div>
       ${lotes.length ? `<table><tr><th>Coleta</th><th>Local</th><th>Cor</th><th>Disp.</th></tr>${lotes.map(l => { const c = S.canecas[l.caneca] || {}; return `<tr><td>${fData(l.data)}</td><td>Botijão ${esc(c.botijao)} / Caneca ${esc(c.caneca)}</td><td>${esc(l.cor)}</td><td><b>${l.disp}</b> de ${l.ini}</td></tr>`; }).join('')}</table>` : ''}</div>` : ''}
     <div class="card"><h3 style="margin-top:0">Histórico de atividades e viveiros</h3>
-      <div class="tl">${hist.map(h => `<div class="ev"><b>${esc(h.tipo)}</b> <small>${fData(h.data)}${h.user ? ' · ' + esc(h.user) : ''}</small><div>${esc(h.resumo)}</div>${h.destino && h.destino !== h.origem ? `<small>Viveiro ${esc(viv(h.origem))} → <b>${esc(viv(h.destino))}</b></small>` : ''}${h.obs ? `<div class="mut">${esc(h.obs)}</div>` : ''}</div>`).join('') || '<p class="mut">Sem atividades.</p>'}</div></div>`;
+      <div class="tl">${hist.map(h => `<div class="ev"${h.anulada ? ' style="opacity:.5;text-decoration:line-through"' : ''}><b>${esc(h.tipo)}</b> <small>${fData(h.data)}${h.user ? ' · ' + esc(h.user) : ''}</small>${podeAnular(h) ? ` <button class="chip noprint" style="min-height:28px;padding:2px 10px;font-size:12px" onclick="anularLanc('${esc(h.id)}')">Anular</button>` : ''}<div>${esc(h.resumo)}</div>${h.destino && h.destino !== h.origem ? `<small>Viveiro ${esc(viv(h.origem))} → <b>${esc(viv(h.destino))}</b></small>` : ''}${h.obs ? `<div class="mut">${esc(h.obs)}</div>` : ''}</div>`).join('') || '<p class="mut">Sem atividades.</p>'}</div></div>`;
 }
 function telaEditar(id) {
   const a = S.animais[id];
@@ -593,7 +664,7 @@ function acaoLote(id) {
 // ===================== Mais =====================
 function telaMais() {
 
-  const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)'], ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['cruzamento', 'Simular cruzamento', 'Parentesco entre macho e fêmea e endogamia esperada do filho'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ...(user.perfil === 'Administrador' ? [['usuarios', 'Pessoas e PINs', 'Quem pode entrar no sistema, com qual perfil, e acesso à planilha']] : []), ...(user.token ? [['meupin', 'Trocar meu PIN', 'Precisa de internet']] : []), ['pendencias', 'Pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)'], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
+  const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ...(user.perfil === 'Administrador' || !cfg.url ? [['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)']] : []), ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['cruzamento', 'Simular cruzamento', 'Parentesco entre macho e fêmea e endogamia esperada do filho'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ...(user.perfil === 'Administrador' ? [['usuarios', 'Pessoas e PINs', 'Quem pode entrar no sistema, com qual perfil, e acesso à planilha']] : []), ...(user.token ? [['meupin', 'Trocar meu PIN', 'Precisa de internet']] : []), ['pendencias', 'Pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)'], ['config', 'Configurações', 'Nome do sistema, servidor, usuário']];
   $('main').innerHTML = `<h2>Mais</h2><div class="card" style="padding:4px 12px">${it.map(([k, t, s]) => `<div class="item" onclick="${k === 'excel' ? 'exportarExcel()' : `ir('${k}')`}"><div class="m"><b>${t}</b><div class="s">${s}</div></div><span>›</span></div>`).join('')}</div>
     <p class="mut">Usuário: <b>${esc(user.nome)}</b> · <a class="lk" onclick="ir('sair')">Sair</a></p>`;
 }
@@ -1000,7 +1071,7 @@ function telaCruzamento() {
 function telaMeuPin() {
   $('main').innerHTML = `<h2>${user.trocarPin ? 'Crie o seu PIN' : 'Trocar meu PIN'}</h2>${user.trocarPin ? '<div class="alert">Você entrou com um PIN provisório. Crie agora um PIN só seu para continuar.</div>' : ''}<div class="card">
     <label style="margin-top:0">${user.trocarPin ? 'PIN provisório que você recebeu' : 'PIN atual'}</label><input id="pA" type="password" inputmode="numeric">
-    <label>PIN novo (4 a 8 números)</label><input id="pN" type="password" inputmode="numeric">
+    <label>PIN novo (6 a 8 números)</label><input id="pN" type="password" inputmode="numeric">
     <label>Repita o PIN novo</label><input id="pN2" type="password" inputmode="numeric">
     <div style="height:12px"></div><button class="btn acc w" onclick="trocarPin()">Trocar PIN</button></div>`;
 }
@@ -1009,7 +1080,7 @@ async function trocarPin() {
     if (v('pN') !== v('pN2')) throw new Error('Os dois PINs novos não conferem.');
     const r = await chamar({ ...auth(), acao: 'meuPin', dados: { pinAtual: v('pA'), pinNovo: v('pN') } });
     if (!r.ok) throw new Error(r.erro);
-    const eraProv = user.trocarPin; user.trocarPin = false; LS.set('user', user);
+    const eraProv = user.trocarPin; user.trocarPin = false; if (r.token) user.token = r.token; LS.set('user', user);
     toast(eraProv ? 'Pronto! Seu PIN foi criado.' : 'PIN trocado.', 'ok'); ir(eraProv ? 'inicio' : 'mais');
   } catch (e) { toast(e.message, 'err'); }
 }
@@ -1026,7 +1097,7 @@ async function sair(apagar) {
   if (apagar && fila.length && !confirm('Os lançamentos não enviados serão perdidos. Continuar?')) return;
   try { if (cfg.url && user && user.token && navigator.onLine) await chamar({ ...auth(), sair: true }); } catch (e) {}
   user = null; LS.set('user', null);
-  if (apagar) { ['base', 'fila', 'recusados', 'ultimoLanc', 'ultimaSync'].forEach(k => { try { localStorage.removeItem('plantel_' + k); } catch (e) {} }); base = null; fila = []; recusados = []; recalcular(); }
+  if (apagar) { ['base', 'fila', 'recusados', 'ultimoLanc', 'ultimaSync'].forEach(k => { try { localStorage.removeItem('plantel_' + k); } catch (e) {} }); base = null; fila = []; recusados = []; salvarLocal(); recalcular(); }
   render();
 }
 
@@ -1034,13 +1105,13 @@ async function sair(apagar) {
 let listaUs = null;
 async function telaUsuarios(acao) {
   $('main').innerHTML = `<h2>Pessoas e PINs</h2>
-    <div class="card"><p class="mut" style="margin-top:0">Cada pessoa entra com o nome e um PIN de 4 a 8 números. O PIN fica guardado protegido (cifrado) na planilha. Depois de 5 PINs errados, a pessoa fica bloqueada por 15 minutos.</p>
+    <div class="card"><p class="mut" style="margin-top:0">Cada pessoa entra com o e-mail (ou o nome) e um PIN de 6 a 8 números. O PIN não fica legível em lugar nenhum: a planilha guarda só uma impressão digital dele (hash). Depois de 5 PINs errados, a pessoa fica bloqueada por 15 minutos.</p>
     <div class="grid2"><div><label>Nome</label><input id="uNome" placeholder="ex.: Tiago"></div><div><label>E-mail (Gmail)</label><input id="uEmail" type="email" autocapitalize="off" placeholder="nome@gmail.com"></div>
-    <div><label>PIN inicial</label><input id="uPin" inputmode="numeric" type="password" placeholder="4 a 8 números"></div>
-    <div><label>Acesso à planilha no Google Drive</label><select id="uPlan"><option value="">Não compartilhar</option><option value="ver">Pode ver</option><option value="editar">Pode editar</option></select></div>
+    <div><label>PIN inicial</label><input id="uPin" inputmode="numeric" type="password" placeholder="6 a 8 números"></div>
+    <div><label>Acesso à planilha no Google Drive</label><select id="uPlan"><option value="">Não compartilhar</option><option value="ver">Pode ver a planilha</option><option value="editar">Pode editar a planilha (cuidado)</option></select></div>
     <div><label>Perfil</label><select id="uPerfil"><option>Técnico</option><option>Administrador</option><option>Consulta</option></select></div>
     <div><label>Situação</label><select id="uAtivo"><option value="1">Ativo</option><option value="0">Desativado</option></select></div></div>
-    <p class="mut">A pessoa entra com o e-mail (ou o nome) e o PIN. <b>Administrador</b> também cadastra pessoas e exporta dados; <b>Técnico</b> lança manejos; <b>Consulta</b> só vê. "Acesso à planilha" compartilha a pasta Linhagem do Google Drive com o e-mail. Para trocar o PIN de alguém, salve a mesma pessoa com o PIN novo; cada um também pode trocar o próprio em Mais → Trocar meu PIN.</p>
+    <p class="mut">A pessoa entra com o e-mail (ou o nome) e o PIN. <b>Administrador</b> também cadastra pessoas e exporta dados; <b>Técnico</b> lança manejos; <b>Consulta</b> só vê. <b>Técnico</b> não edita genealogia, não reverte baixa e não importa. "Acesso à planilha" compartilha só a planilha (o servidor e os backups não). O normal é ninguém precisar: tudo se faz pelo app. Para trocar o PIN de alguém, salve a mesma pessoa com o PIN novo; cada um também pode trocar o próprio em Mais → Trocar meu PIN.</p>
     <button class="btn acc w" onclick="salvarUs()">Salvar pessoa</button></div>
     <h3>Cadastrados</h3><div class="card" id="listaUs"><p class="mut">${cfg.url ? 'Carregando…' : 'Configure o servidor para cadastrar pessoas.'}</p></div>`;
   if (!cfg.url) return;
@@ -1052,19 +1123,36 @@ async function telaUsuarios(acao) {
   } catch (e) { $('listaUs').innerHTML = `<div class="alert err">${esc(e.message)}</div>`; }
 }
 function desenharUs() {
-  $('listaUs').innerHTML = (listaUs || []).length ? `<table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th></tr>${listaUs.map(u => `<tr onclick="$('uNome').value='${esc(u.nome)}';$('uEmail').value='${esc(u.email || '')}';$('uPerfil').value='${esc(u.perfil)}';$('uAtivo').value='${u.ativo ? 1 : 0}';$('uPin').focus()" style="cursor:pointer"><td>${esc(u.nome)}</td><td>${esc(u.email || '—')}</td><td>${esc(u.perfil)}</td><td>${u.ativo ? 'Ativo' : '<span class="tag bad">Desativado</span>'}</td></tr>`).join('')}</table><p class="mut">Toque numa pessoa para alterar.</p>` : '<p class="mut">Ninguém cadastrado ainda. Comece por você, como Administrador.</p>';
+  $('listaUs').innerHTML = (listaUs || []).length ? `<table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th></tr>${listaUs.map((u, i) => `<tr onclick="editarUs(${i})" style="cursor:pointer"><td>${esc(u.nome)}</td><td>${esc(u.email || '—')}</td><td>${esc(u.perfil)}</td><td>${u.ativo ? 'Ativo' : '<span class="tag bad">Desativado</span>'}</td></tr>`).join('')}</table><p class="mut">Toque numa pessoa para alterar.</p>` : '<p class="mut">Ninguém cadastrado ainda. Comece por você, como Administrador.</p>';
 }
+function editarUs(i) { const u = listaUs[i]; $('uNome').value = u.nome; $('uEmail').value = u.email || ''; $('uPerfil').value = u.perfil; $('uAtivo').value = u.ativo ? 1 : 0; $('uPin').focus(); }
 async function salvarUs() {
   try {
     const d = { nome: v('uNome'), email: v('uEmail'), pin: v('uPin'), perfil: v('uPerfil'), ativo: v('uAtivo') === '1', acessoPlanilha: v('uPlan') };
     if (!d.nome) throw new Error('Informe o nome.');
     const r = await chamar({ ...auth(), acao: 'usuario', dados: d });
     if (!r.ok) throw new Error(r.erro);
-    if (d.nome.toLowerCase() === user.nome.toLowerCase() && d.pin && !user.token) { // primeiro acesso: troca para sessão
-      const l = await chamar({ chave: cfg.chave, user: d.nome, pin: d.pin, login: true }); if (l.ok && l.token) { user = { nome: d.nome, token: l.token, perfil: l.perfil }; LS.set('user', user); }
-    }
     listaUs = r.usuarios; desenharUs(); $('uNome').value = ''; $('uPin').value = ''; $('uEmail').value = '';
     toast('Pessoa salva.' + (r.compartilhado ? ' Planilha compartilhada com ' + d.email + '.' : ''), 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ===================== Anular lançamento errado =====================
+// Não apaga: registra a anulação (quem, quando, motivo) e o servidor refaz os dados sem aquele lançamento
+function podeAnular(h) {
+  if (!user || h.anulada || h.tipo === 'Anulação' || !cfg.url) return false;
+  if (user.perfil === 'Administrador') return true;
+  if (user.perfil !== 'Técnico' || String(h.user).toLowerCase() !== String(user.nome).toLowerCase()) return false;
+  return Date.now() - new Date(h.ts).getTime() < PRAZO_ANULAR_H * 3600e3;
+}
+function anularLanc(id) {
+  const h = S.atividades.find(x => x.id === id); if (!h) return;
+  const motivo = prompt('Anular "' + h.tipo + (h.resumo ? ' · ' + h.resumo : '') + '"?\n\nO lançamento sai dos cálculos (peso, doses, viveiro, status) e fica registrado quem anulou e por quê.\n\nMotivo:');
+  if (motivo === null) return;
+  if (!motivo.trim()) return toast('Informe o motivo para anular.', 'err');
+  try {
+    lancar([ev('anular', { alvo: id, motivo: motivo.trim(), animal: h.animal, alvoTipo: h.tipo, alvoResumo: h.resumo })]);
+    toast('Anulação enviada. Os números se ajustam assim que sincronizar.', 'ok'); ir('ficha', h.animal);
   } catch (e) { toast(e.message, 'err'); }
 }
 
@@ -1101,10 +1189,12 @@ function mudarSug(id, st) { try { lancar([ev('sugestao_status', { id, status: st
     if (q.get('s')) { cfg.url = q.get('s'); cfg.chave = q.get('k') || cfg.chave; LS.set('cfg', cfg); history.replaceState(null, '', location.pathname); }
   } catch (e) {}
 })();
-recalcular();
-render();
+carregarArmazenamento().then(() => {
+  recalcular();
+  render();
+  sincronizar();
+});
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-sincronizar();
 </script>
 </body>
 </html>
