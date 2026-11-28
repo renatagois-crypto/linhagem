@@ -1159,9 +1159,9 @@ function anularLanc(id) {
 // ===================== Melhorias e correções =====================
 function telaSugestoes() {
   const lista = (S.sugestoes || []).slice().reverse();
-  const telas = ['Geral', 'Início', 'Lançar manejo', 'Ficha do animal', 'Banco de sêmen', 'Viveiros', 'Importação', 'Pedigree', 'Painéis'];
+  const telas = ['Geral', 'Entrar / primeiro acesso', 'Início', 'Lançar manejo', 'Ficha do animal', 'Banco de sêmen', 'Viveiros', 'Importação', 'Exportar Excel', 'Pedigree', 'Simular cruzamento', 'Painéis', 'Pessoas e PINs'];
   $('main').innerHTML = `<h2>Melhorias e correções</h2>
-    <div class="card"><p class="mut" style="margin-top:0">Encontrou um erro ou tem uma ideia? Descreva aqui. Fica registrado na planilha (aba Sugestoes) com seu nome e a data.</p>
+    <div class="card"><p class="mut" style="margin-top:0">Encontrou um erro, sentiu falta de um campo ou tem uma ideia? Descreva aqui, mesmo sem internet. Fica registrado (aba Sugestoes) com seu nome e a data, e a equipe que mantém o sistema acompanha por aqui.</p>
     <div class="chips"><button class="chip on" id="tgM" onclick="this.classList.add('on');$('tgC').classList.remove('on')">Melhoria</button><button class="chip" id="tgC" onclick="this.classList.add('on');$('tgM').classList.remove('on')">Correção (erro)</button></div>
     <label>Em qual parte do sistema?</label><select id="sgTela">${telas.map(t => `<option>${t}</option>`).join('')}</select>
     <label>Descrição</label><textarea id="sgTxt" rows="4" placeholder="Ex.: incluir temperatura da água na biometria"></textarea>
@@ -1172,7 +1172,7 @@ function telaSugestoes() {
       <div style="margin:6px 0">${esc(x.texto)}</div>
       <div class="s">${esc(x.user)} · ${new Date(x.data).toLocaleDateString('pt-BR')}</div>
       ${x.resposta ? `<div class="alert" style="margin:6px 0 0">Resposta: ${esc(x.resposta)}</div>` : ''}
-      <div class="noprint" style="margin-top:6px"><select style="min-height:36px;padding:6px;width:auto" onchange="mudarSug('${x.id}',this.value)">${['Nova', 'Em andamento', 'Feita', 'Descartada'].map(o => `<option ${x.status === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
+      ${user.perfil === 'Administrador' ? `<div class="noprint" style="margin-top:6px"><select style="min-height:36px;padding:6px;width:auto" onchange="mudarSug('${x.id}',this.value)">${['Nova', 'Em andamento', 'Feita', 'Descartada'].map(o => `<option ${x.status === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>` : ''}
     </div></div>`).join('') || '<p class="mut">Nenhuma ainda.</p>'}</div>`;
 }
 function enviarSugestao() {
