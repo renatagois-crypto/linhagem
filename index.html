@@ -126,7 +126,7 @@ const LS = {
 function cookieGuardar(k, v) { try { document.cookie = 'linhagem_' + k + '=' + encodeURIComponent(JSON.stringify(v)) + ';path=/;max-age=31536000;SameSite=Lax' + (location.protocol === 'https:' ? ';Secure' : ''); } catch (e) {} }
 function cookieLer(k) { try { const m = document.cookie.match(new RegExp('(?:^|; )linhagem_' + k + '=([^;]*)')); return m ? JSON.parse(decodeURIComponent(m[1])) : undefined; } catch (e) { return undefined; } }
 // Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
-const VERSAO = '1.4.2 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
+const VERSAO = '1.4.3 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
 const GRANDES = ['base', 'fila', 'recusados'];
 const IDB = {
   db: null,
@@ -270,7 +270,7 @@ function barraSync() {
   return barraSync2();
 }
 // falha de conexão passageira (celular foi para segundo plano, sinal caiu) sem nada a enviar não é problema
-function erroRelevante() { return erroSync && (fila.length || !/Load failed|Failed to fetch|NetworkError|network|demorou|abort/i.test(erroSync.msg)) ? erroSync : null; }
+function erroRelevante() { return erroSync && (fila.length || !base || !/Load failed|Failed to fetch|NetworkError|network|demorou|abort/i.test(erroSync.msg)) ? erroSync : null; }
 function barraSync2() {
   const erroSync = erroRelevante();
   const n = fila.length, hora = ultimaSync ? new Date(ultimaSync).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ainda não';
@@ -435,7 +435,7 @@ async function entrar() {
   // com servidor: o celular guarda só um token de sessão (30 dias), nunca o PIN
   user = token ? { nome: nomeSrv || nome, token, perfil, trocarPin: !!trocar } : { nome, pin: cfg.url ? pin : '', perfil: perfil || 'Administrador' }; LS.set('user', user);
   if (user.trocarPin) ir('meupin'); else ir('inicio');
-  sincronizar();
+  sincronizar(true); // logo depois de entrar: se não conseguir buscar os dados, a pessoa fica sabendo
 }
 // Primeiríssimo acesso ao servidor (ninguém cadastrado): quem configura o sistema vira a administradora
 function telaPrimeiro(digitado) {
