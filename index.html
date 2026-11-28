@@ -374,7 +374,9 @@ function telaInicio() {
   const m = an.filter(a => a.sexo === 'M').length, f = an.filter(a => a.sexo === 'F').length;
   const doses = Object.values(S.lotes).reduce((t, l) => t + (l.disp || 0), 0);
   const ult = S.atividades.slice(-6).reverse();
+  const temEx = Object.values(S.viveiros).some(v => /Matrizes A/.test(v.nome || ''));
   $('main').innerHTML = `<div id="barSync">${barraSync()}</div>
+    ${temEx && user.perfil === 'Administrador' ? `<div class="alert" style="margin:0 0 12px">Esta base tem <b>dados de exemplo</b>. Para usar a sua planilha: <b>Mais → Importar dados → Começar do zero</b>, e depois importe.</div>` : ''}
     <div class="hero"><label style="margin-top:0">Buscar animal pelos últimos dígitos do chip ou pelo leitor RFID</label>
       <input id="q" class="busca" inputmode="numeric" autocomplete="off" placeholder="ex.: 48213" oninput="resBusca()" onkeydown="if(event.key==='Enter'){const r=buscar(this.value);if(r.length===1)ir('ficha',r[0].id)}">
       <div id="res" style="background:#fff;border-radius:12px;color:var(--tx)"></div></div>
@@ -747,6 +749,34 @@ const IMPORTS = {
   manejos: { nome: 'Outros manejos (histórico)', cols: 'CHIP, DATA, MANEJO, DETALHE' }
 };
 let imp = null, impTipo = 'animais';
+// ===================== Dados de exemplo (para conhecer o app sem a planilha real) =====================
+function eventosExemplo() { return // gera dados de exemplo dentro do app (modo demonstração)
+(() => {
+  const E = []; const id = () => uid();
+  let n = 0; const chip = (ano) => '982000' + String(ano).slice(2) + String(1000000 + (n++)).slice(1) ;
+  const viv = {}; [['V-01','Matrizes A','Viveiro escavado',60],['V-02','Matrizes B','Viveiro escavado',60],['V-03','Recria 2022','Viveiro escavado',80],['V-04','Quarentena','Tanque',20],['V-05','Reserva','Viveiro escavado',60]].forEach(([c,nm,t,cap],i)=>{ viv[c]=id(); E.push(ev('viveiro',{id:viv[c],codigo:c,nome:nm,tipoUnidade:t,cap,status:i===4?'Vazio sanitário':'Ativo'})); });
+  const can = {}; [['B1','1','Azul'],['B1','2','Verde'],['B1','3','Amarela'],['B2','1','Vermelha']].forEach(([b,c,cor])=>{ can[b+c]=id(); E.push(ev('caneca',{id:can[b+c],botijao:b,caneca:c,cor,cap:200})); });
+  const A = [];
+  const novo = (safra, sexo, v, pai, mae, classe) => { const a={id:id(),chip:chip(safra),sexo,safra:String(safra),viveiro:viv[v],classe}; E.push(ev('animal_novo',{...a,pai:pai?pai.id:'',mae:mae?mae.id:'',importado:true})); A.push({...a,pai,mae}); return a; };
+  const M16=[], F16=[];
+  for (let i=0;i<6;i++){ M16.push(novo(2016,'M','V-01',null,null,'A')); F16.push(novo(2016,'F','V-02',null,null,'A')); }
+  const G19=[];
+  for (let i=0;i<10;i++){ G19.push(novo(2019, i%2?'F':'M', i%2?'V-02':'V-01', M16[(i>>1)%3], F16[i%4], i<6?'A':'B')); }
+  const M19=G19.filter(a=>a.sexo==='M'), F19=G19.filter(a=>a.sexo==='F');
+  for (let i=0;i<14;i++){ novo(2022, i<10?(i%2?'F':'M'):'I', 'V-03', M19[i%M19.length], F19[(i+(i>4?1:0))%F19.length], i<5?'A':i<10?'B':'C'); }
+  // biometrias ao longo do tempo
+  const datas=['2025-03-12','2025-09-10','2026-03-15','2026-10-20'];
+  A.forEach((a,k)=>{ const base=a.safra==='2016'?7800:a.safra==='2019'?4200:900; datas.forEach((d,j)=>{ const peso=Math.round(base+j*(a.safra==='2022'?650:300)+(k%7)*85); const ct=Math.round((Math.cbrt(peso)*3.3)*10)/10; E.push(ev('atividade',{animal:a.id,sub:'Biometria',data:d,dados:{peso,ct,cp:Math.round(ct*0.84*10)/10}})); }); });
+  // coletas de sêmen
+  [[M16[0],'B1','1',60],[M16[1],'B1','1',45],[M16[2],'B1','2',80],[M19[0],'B1','3',50],[M19[1],'B2','1',35]].forEach(([m,b,c,d],i)=>E.push(ev('atividade',{animal:m.id,sub:'Coleta de sêmen',data:'2026-0'+(i+3)+'-1'+i,dados:{volume:3.5,motilidade:85-i*3,vigor:4,doses:d,caneca:can[b+c],cor:['Azul','Azul','Verde','Amarela','Vermelha'][i]}})));
+  return E;
+})(); }
+function carregarExemplo() {
+  if (Object.keys(S.animais).length && !confirm('A base já tem animais. Acrescentar os dados de exemplo mesmo assim?')) return;
+  try { lancar(eventosExemplo()); toast('Dados de exemplo carregados: 36 animais, viveiros, sêmen e manejos. Para usar a planilha real, apague antes em "Começar do zero".', 'ok'); ir('inicio'); }
+  catch (e) { toast(e.message, 'err'); }
+}
+
 // ===================== Começar do zero (apagar dados de teste) =====================
 function telaLimpar() {
   const n = Object.keys(S.animais).length, nv = Object.keys(S.viveiros).length, nl = Object.keys(S.lotes).length, na = S.atividades.length;
@@ -783,7 +813,7 @@ function telaImportar(tipo) {
     <button class="btn sec w" style="margin-top:8px" onclick="baixarModelo()">Baixar modelo de planilha (${IMPORTS[impTipo].nome})</button>
     <label class="btn acc w" style="color:#fff;margin-top:8px">Escolher arquivo (.xlsx ou .csv)<input type="file" id="arq" accept=".xlsx,.xls,.csv" class="hide" onchange="lerPlanilha(this.files[0])"></label></div>
     <div id="prev"></div>
-    ${Object.keys(S.animais).length && (user.perfil === 'Administrador' || !cfg.url) ? `<div class="card" style="border-color:#E8C7C2;margin-top:14px"><b>Já há dados na base</b> (${Object.keys(S.animais).length} animais). Se são dados de teste ou de exemplo, apague antes de importar a planilha real, para não misturar.<div style="height:8px"></div><button class="btn sec w" onclick="ir('limpar')">Começar do zero (apagar dados de teste)</button></div>` : ''}`;
+    ${user.perfil === 'Administrador' || !cfg.url ? (Object.keys(S.animais).length ? `<div class="card" style="border-color:#E8C7C2;margin-top:14px"><b>Vai importar a planilha real?</b> A base já tem ${Object.keys(S.animais).length} animais (dados de exemplo ou de teste). Apague antes, para não misturar.<div style="height:8px"></div><button class="btn sec w" onclick="ir('limpar')">🗑 Começar do zero (apagar dados de exemplo)</button></div>` : `<div class="card" style="margin-top:14px"><b>Ainda sem a planilha?</b> Carregue dados de exemplo para conhecer o app. Depois é só apagar em "Começar do zero".<div style="height:8px"></div><button class="btn sec w" onclick="carregarExemplo()">Carregar dados de exemplo</button></div>`) : ''}`;
 }
 const MODELOS = {
   animais: [['PRODUTO', 'SAFRA', 'SEXO', 'PAI', 'MAE', 'Tanque atual', 'RAZAO_PAI', 'RAZAO_MAE', 'CLASSE_PRIORIDADE'], ['982000123456789', '2022', 'M', '982000111111111', '982000222222222', 'V-01', '', '', 'A']],

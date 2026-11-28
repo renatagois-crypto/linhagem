@@ -251,6 +251,7 @@ function enviarConvite(nome, email, perfil, quem) {
     + '<ul><li><b>Android (Chrome):</b> toque nos três pontinhos ⋮ no canto de cima e em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li>'
     + '<li><b>iPhone (Safari):</b> toque no botão Compartilhar (quadrado com seta) e em <b>Adicionar à Tela de Início</b>.</li></ul>'
     + '<p>O primeiro acesso precisa de internet. Depois, o app funciona também na beira do viveiro, sem sinal, e envia tudo quando a internet voltar.</p>'
+    + '<p><b>Dados de exemplo:</b> o sistema pode estar com animais e lançamentos de exemplo, só para você conhecer como funciona. Quando for usar a sua planilha real, vá em <b>Mais → Importar dados → Começar do zero</b> (apaga os exemplos e guarda uma cópia de segurança) e depois importe a sua planilha.</p>'
     + '<p>Achou algo estranho ou sentiu falta de um campo? Registre em <b>Mais → Melhorias e correções</b>, dentro do app.</p>'
     + '<p style="color:#5E7276;font-size:13px">Se o botão não abrir, copie este endereço no navegador do celular:<br>' + link + '</p></div>';
   MailApp.sendEmail({ to: email, subject: 'Linhagem — seu acesso ao sistema do plantel', htmlBody: html, body: 'Abra no celular: ' + link + ' — entre com este e-mail e o PIN provisório que ' + quem + ' vai te passar. Depois, adicione à tela inicial pelo menu do navegador.', name: 'Linhagem' });
