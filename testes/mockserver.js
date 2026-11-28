@@ -21,7 +21,7 @@ global.DriveApp={getFileById:id=>({addEditor:e=>global.shares.push(['editar',id,
 const trig=[];global.ScriptApp={getService:()=>({getUrl:()=>'https://script.google.com/macros/s/X/exec'}),getScriptId:()=>'script',getOAuthToken:()=>'tok',getProjectTriggers:()=>trig,newTrigger:h=>{const b={timeBased(){return b},everyDays(){return b},atHour(){return b},create(){trig.push({getHandlerFunction:()=>h})}};return b}};global.UrlFetchApp={fetch:()=>({getBlob:()=>({setName(n){this.n=n;return this}})})};global.MailApp={sendEmail:o=>{global.mails.push(o.to);global.ultimoMail=o}};
 global.LockService={getScriptLock:()=>({waitLock(){},releaseLock(){}})};
 global.ContentService={createTextOutput:t=>({setMimeType(){return t}}),MimeType:{JSON:1}};
-eval(fs.readFileSync('/home/claude/plantel/Code.gs','utf8')+';global.doPost=doPost;global.doGet=doGet;global.reconstruir=reconstruirDosEventos;global.restaurar=restaurarBackup;');
+eval(fs.readFileSync(process.env.CODE_GS||require('path').join(__dirname,'..','Code.gs'),'utf8')+';global.doPost=doPost;global.doGet=doGet;global.reconstruir=reconstruirDosEventos;global.restaurar=restaurarBackup;');
 let down=false;
 http.createServer((req,res)=>{
   res.setHeader('Access-Control-Allow-Origin','*');
