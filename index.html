@@ -18,9 +18,11 @@ header .t{flex:1;min-width:0}
 header .t b{display:block;font-size:17px}
 header .t small{opacity:.8;font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sync{font-size:12px;padding:6px 10px;border-radius:99px;background:rgba(255,255,255,.15);white-space:nowrap;border:0;color:#fff}
-.sync.pend{background:var(--acc)}
+.sync{border:1px solid rgba(255,255,255,.45)!important;font-weight:600;cursor:pointer;min-height:34px}.sync.pend{background:var(--acc);border-color:var(--acc)!important}
+.gira{display:inline-block}.gira.on{animation:gira 1s linear infinite}@keyframes gira{to{transform:rotate(360deg)}}
+.bsync{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--ln);border-radius:14px;padding:10px 12px;margin:0 0 12px}.bsync.pend{border-color:var(--acc);background:#FFF6EE}.bsync b{display:block;font-size:14px}.bsync small{color:var(--mut);font-size:12px}.bsync .btn{min-height:40px;padding:8px 12px;white-space:nowrap;width:auto}
 .sync.off{background:#6b4a2a}
-main{padding:14px;padding-bottom:96px;max-width:860px;margin:0 auto}
+main{padding:14px;padding-bottom:170px;max-width:860px;margin:0 auto}
 nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--ln);display:flex;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
 nav button{flex:1;border:0;background:none;padding:9px 2px 10px;font-size:12px;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px}
 nav button svg{width:24px;height:24px}
@@ -87,6 +89,7 @@ th{color:var(--mut);font-weight:600;font-size:12px}
 a.lk{color:var(--pri);font-weight:600;cursor:pointer;text-decoration:none}
 details summary{cursor:pointer;color:var(--pri);font-weight:600;padding:6px 0}
 @media print{header,nav,.noprint{display:none!important}main{padding:0;max-width:none}.card{break-inside:avoid;border-color:#bbb}}
+.barSalvar{position:fixed;left:0;right:0;bottom:calc(57px + env(safe-area-inset-bottom));z-index:4;background:#fff;border-top:1px solid var(--ln);box-shadow:0 -6px 18px rgba(8,58,64,.08);display:flex;gap:10px;align-items:center;padding:8px 14px}.bsInfo{flex:1;min-width:0}.bsInfo b{display:block;font-size:14px}.bsInfo small{display:block;color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.barSalvar .btn{width:auto;min-height:46px;padding:10px 16px;white-space:nowrap}
 .voltar{display:flex;justify-content:space-between;margin:-4px 0 6px}.voltar button{background:none;border:0;color:var(--pri);font:600 15px inherit;font-family:inherit;padding:8px 2px;min-height:40px;cursor:pointer}
 </style>
 </head>
@@ -193,7 +196,7 @@ async function sincronizar(manual) {
     ultimaSync = new Date().toISOString(); LS.set('ultimaSync', ultimaSync);
     salvarLocal(); recalcular(); render();
     if (nRec > 0) toast(nRec + ' lançamento(s) recusado(s) pelo servidor. Veja em Mais → Pendências.', 'err');
-    else if (manual) toast('Sincronizado.', 'ok');
+    else if (manual) toast('Sincronizado: tudo enviado e dados atualizados.', 'ok');
   } catch (e) {
     if (manual) toast('Não foi possível sincronizar: ' + e.message, 'err');
   } finally { sincronizando = false; atualizarSync(); if (syncDeNovo && fila.length) setTimeout(() => sincronizar(), 200); }
@@ -202,7 +205,16 @@ function atualizarSync() {
   const b = $('syncBtn');
   const n = fila.length;
   b.className = 'sync' + (n ? ' pend' : '') + (!navigator.onLine ? ' off' : '');
-  b.textContent = sincronizando ? 'Enviando…' : !cfg.url ? 'Demonstração' + (n ? ' · ' + n : '') : n ? n + ' a enviar' + (!navigator.onLine ? ' (offline)' : '') : !navigator.onLine ? 'Offline' : 'Sincronizado';
+  const hora = ultimaSync ? new Date(ultimaSync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  b.innerHTML = '<span class="gira' + (sincronizando ? ' on' : '') + '">⟳</span> ' + (sincronizando ? 'Enviando…' : !cfg.url ? 'Demonstração' + (n ? ' · ' + n : '') : n ? 'Enviar ' + n + (!navigator.onLine ? ' (sem sinal)' : '') : !navigator.onLine ? 'Sem sinal' : 'Sincronizar');
+  b.title = cfg.url ? (n ? n + ' lançamento(s) aguardando envio. Toque para enviar agora.' : 'Tudo enviado' + (hora ? ' (última vez às ' + hora + ')' : '') + '. Toque para buscar as novidades.') : 'Modo demonstração: os dados ficam só neste aparelho.';
+  const bar = $('barSync'); if (bar) bar.innerHTML = barraSync();
+}
+// faixa da tela inicial: situação da sincronização e botão grande
+function barraSync() {
+  if (!cfg.url) return `<div class="bsync"><div><b>Modo demonstração</b><small>Os dados ficam só neste aparelho.</small></div></div>`;
+  const n = fila.length, hora = ultimaSync ? new Date(ultimaSync).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'ainda não';
+  return `<div class="bsync ${n ? 'pend' : ''}"><div><b>${sincronizando ? 'Enviando…' : n ? n + ' lançamento(s) aguardando envio' : 'Tudo enviado'}</b><small>${navigator.onLine ? 'Última sincronização: ' + hora : 'Sem internet agora: os lançamentos ficam guardados e vão sozinhos quando o sinal voltar.'}</small></div><button class="btn ${n ? 'acc' : 'sec'}" onclick="sincronizar(true)" ${sincronizando ? 'disabled' : ''}>⟳ Sincronizar</button></div>`;
 }
 window.addEventListener('online', () => { atualizarSync(); sincronizar(); });
 window.addEventListener('offline', atualizarSync);
@@ -360,7 +372,7 @@ function telaInicio() {
   const m = an.filter(a => a.sexo === 'M').length, f = an.filter(a => a.sexo === 'F').length;
   const doses = Object.values(S.lotes).reduce((t, l) => t + (l.disp || 0), 0);
   const ult = S.atividades.slice(-6).reverse();
-  $('main').innerHTML = `
+  $('main').innerHTML = `<div id="barSync">${barraSync()}</div>
     <div class="hero"><label style="margin-top:0">Buscar animal pelos últimos dígitos do chip ou pelo leitor RFID</label>
       <input id="q" class="busca" inputmode="numeric" autocomplete="off" placeholder="ex.: 48213" oninput="resBusca()" onkeydown="if(event.key==='Enter'){const r=buscar(this.value);if(r.length===1)ir('ficha',r[0].id)}">
       <div id="res" style="background:#fff;border-radius:12px;color:var(--tx)"></div></div>
@@ -370,7 +382,7 @@ function telaInicio() {
       <div class="acao" onclick="L.sub='Coleta de ovócitos';guardar();ir('lancar')"><span>🥚</span>Ovócitos</div>
       <div class="acao" onclick="L.sub='Mudança de viveiro';guardar();ir('lancar')"><span>🔁</span>Mudar viveiro</div>
       <div class="acao" onclick="L.sub='Novo animal (chipagem)';guardar();ir('lancar')"><span>🏷️</span>Novo animal</div>
-      <div class="acao" onclick="ir('importar')"><span>📥</span>Importar dados</div>
+      ${user.perfil === 'Administrador' || !cfg.url ? `<div class="acao" onclick="ir('importar')"><span>📥</span>Importar dados</div>` : `<div class="acao" onclick="ir('animais')"><span>🐟</span>Animais</div>`}
     </div>
     <div class="kpis">
       <div class="kpi"><b>${an.length}</b><span>animais ativos</span></div>
@@ -440,7 +452,8 @@ function telaLancar(idAnimal) {
       <button class="btn acc w" onclick="salvarLanc()">${nomeSalvar}</button>
       ${L.lote ? `<p class="mut" style="margin:8px 0 0"><b>${S.atividades.filter(x => x.tipo === (L.sub === 'Outro manejo' ? L.outro : L.sub) && String(x.data).slice(0, 10) === L.data).length}</b> lançamento(s) deste tipo nesta data.</p>` : ''}
       ${L.lote ? '<p class="mut" style="margin:8px 0 0">Depois de salvar, a tela volta pronta para o próximo animal com o mesmo manejo e o mesmo viveiro de destino.</p>' : ''}
-    </div>`;
+    </div>
+    <div class="barSalvar noprint"><div class="bsInfo"><b>${esc(novo ? 'Novo animal' : L.sub === 'Outro manejo' ? (L.outro || 'Outro manejo') : L.sub)}</b><small>${novo ? 'Preencha o chip e o viveiro' : a ? 'Animal …' + esc(a.chip.slice(-6)) + ' · ' + esc(viv(a.viveiro)) : 'Falta escolher o animal (passo 2)'}</small></div><button class="btn acc" onclick="salvarLanc()">✓ ${nomeSalvar}</button></div>`;
   setTimeout(() => {
     const q = $('qL') || $('nChip') || (a && (document.querySelector('#dadosCard input') || $('fDest')));
     if (q) { q.focus(); if (a) q.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
@@ -460,6 +473,8 @@ function guardar() { LS.set('ultimoLanc', L); }
 function resBuscaL() {
   const q = $('qL').value.trim(), r = buscar(q);
   if (r.length === 1 && (q.length >= 15 || r[0].chip === normChip(q))) { animalSel = r[0].id; return telaLancar(); }
+  const bi = document.querySelector('.bsInfo small');
+  if (bi) bi.textContent = r.length === 1 ? 'Animal …' + r[0].chip.slice(-6) + ' · ' + viv(r[0].viveiro) + ' (confira e salve)' : r.length > 1 ? r.length + ' animais com esse final: toque no certo' : q ? 'Nenhum animal com esse final' : 'Falta escolher o animal (passo 2)';
   $('resL').innerHTML = !q ? '' : r.length ? '<div style="margin-top:8px">' + r.map(a => itemAnimal(a, `animalSel='${a.id}';telaLancar()`)).join('') + '</div>'
     : (() => { const ina = buscar(q, true).filter(x => !ativo(x)); return ina.length ? `<div class="alert err" style="margin-top:8px">O chip terminando em <b>${esc(q)}</b> é de um animal com status <b>${esc(ina[0].status)}</b>, que não recebe manejos.</div>` : ''; })() + `<div class="alert" style="margin-top:8px">Nenhum animal ativo com chip terminando em <b>${esc(q)}</b>.</div>${q.length >= 6 ? `<button class="btn sec w" onclick="L.sub='Novo animal (chipagem)';guardar();telaLancar();setTimeout(()=>{$('nChip').value='${esc(q)}'},60)">Cadastrar o chip ${esc(q)} como animal novo</button>` : ''}`;
 }
@@ -1038,7 +1053,7 @@ function telaConfig() {
 function telaPendencias() {
   $('main').innerHTML = `<h2>Pendências</h2>
     <div class="card"><h3 style="margin-top:0">Aguardando envio (${fila.length})</h3>${fila.slice(-50).reverse().map(e => `<div class="item"><div class="m"><b>${esc(e.p.sub || e.tipo)}</b><div class="s">${new Date(e.ts).toLocaleString('pt-BR')}${e._erro ? ' · <span class="tag bad">' + esc(e._erro) + '</span>' : ''}</div></div></div>`).join('') || '<p class="mut">Tudo enviado.</p>'}
-    ${fila.length ? '<button class="btn w" onclick="sincronizar(true)">Enviar agora</button>' : ''}</div>
+    <button class="btn w ${fila.length ? 'acc' : 'sec'}" onclick="sincronizar(true).then(()=>{if(tela==='pendencias')telaPendencias()})">⟳ Sincronizar agora</button></div>
     <div class="card"><h3 style="margin-top:0">Recusados pelo servidor (${recusados.length})</h3>
     <p class="mut">Acontece quando duas pessoas lançaram algo conflitante sem internet (ex.: o mesmo chip em dois animais). Confira e lance de novo se for o caso.</p>
     ${recusados.slice(0, 50).map(e => `<div class="item"><div class="m"><b>${esc(e.p.sub || e.tipo)}</b> ${e.p.chip ? '<span class="mono">' + esc(e.p.chip) + '</span>' : ''}<div class="s">${esc(e.erro)} · ${new Date(e.ts).toLocaleString('pt-BR')}</div></div></div>`).join('') || '<p class="mut">Nenhum.</p>'}
