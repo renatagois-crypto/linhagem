@@ -752,7 +752,8 @@ const IMPORTS = {
 };
 let imp = null, impTipo = 'animais';
 // ===================== Dados de exemplo (para conhecer o app sem a planilha real) =====================
-function eventosExemplo() { return // gera dados de exemplo dentro do app (modo demonstração)
+function eventosExemplo() { return (
+// gera dados de exemplo dentro do app (modo demonstração)
 (() => {
   const E = []; const id = () => uid();
   let n = 0; const chip = (ano) => '982000' + String(ano).slice(2) + String(1000000 + (n++)).slice(1) ;
@@ -772,7 +773,8 @@ function eventosExemplo() { return // gera dados de exemplo dentro do app (modo 
   // coletas de sêmen
   [[M16[0],'B1','1',60],[M16[1],'B1','1',45],[M16[2],'B1','2',80],[M19[0],'B1','3',50],[M19[1],'B2','1',35]].forEach(([m,b,c,d],i)=>E.push(ev('atividade',{animal:m.id,sub:'Coleta de sêmen',data:'2026-0'+(i+3)+'-1'+i,dados:{volume:3.5,motilidade:85-i*3,vigor:4,doses:d,caneca:can[b+c],cor:['Azul','Azul','Verde','Amarela','Vermelha'][i]}})));
   return E;
-})(); }
+})()
+); }
 function carregarExemplo() {
   if (Object.keys(S.animais).length && !confirm('A base já tem animais. Acrescentar os dados de exemplo mesmo assim?')) return;
   try { lancar(eventosExemplo()); toast('Dados de exemplo carregados: 36 animais, viveiros, sêmen e manejos. Para usar a planilha real, apague antes em "Começar do zero".', 'ok'); ir('inicio'); }
