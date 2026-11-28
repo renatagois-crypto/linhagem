@@ -20,7 +20,7 @@ header .t small{opacity:.8;font-size:12px;display:block;white-space:nowrap;overf
 .sync{font-size:13px;padding:6px 10px;border-radius:99px;background:rgba(255,255,255,.15);white-space:nowrap;border:0;color:#fff}
 .sync{border:1px solid rgba(255,255,255,.45)!important;font-weight:600;cursor:pointer;min-height:42px;background:#1C8C96}.sync.pend{background:var(--acc);border-color:var(--acc)!important}.sync.erro{background:var(--err);border-color:var(--err)!important}
 .gira{display:inline-block}.gira.on{animation:gira 1s linear infinite}@keyframes gira{to{transform:rotate(360deg)}}
-.bsync{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--ln);border-radius:14px;padding:10px 12px;margin:0 0 12px}.bsync.pend{border-color:var(--acc);background:#FFF6EE}.bsync b{display:block;font-size:14px}.bsync small{color:var(--mut);font-size:13px}.bsync .btn{min-height:40px;padding:8px 12px;white-space:nowrap;width:auto}
+.bsync{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--ln);border-radius:14px;padding:10px 12px;margin:0 0 12px}.bsync.pend{border-color:var(--acc);background:#FFF6EE}.bsync b{display:block;font-size:14px}.bsync small{color:var(--mut);font-size:13px}.bsync .btn{min-height:44px;padding:8px 12px;white-space:nowrap;width:auto;flex-shrink:0}.bsync>div{min-width:0}@media(max-width:380px){.bsync{flex-wrap:wrap}.bsync .btn{width:100%}}
 .sync.off{background:#6b4a2a}
 main{padding:14px;padding-bottom:170px;max-width:860px;margin:0 auto}
 nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--ln);display:flex;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
@@ -99,7 +99,7 @@ details summary{cursor:pointer;color:var(--pri);font-weight:600;padding:6px 0}
 .toggle{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid var(--ln);border-radius:12px;padding:12px;margin-top:12px;font-size:16px}.toggle input{width:26px;min-height:26px}
 .bsInfo .chipbig{font-size:20px;font-weight:800;letter-spacing:.5px}
 .destmantido{background:#FFF0E2;border:1px solid var(--acc);border-radius:10px;padding:8px 12px;margin-top:10px;font-size:15px}
-.voltar{display:flex;justify-content:space-between;margin:-4px 0 6px}.voltar button{background:none;border:0;color:var(--pri);font:600 16px inherit;font-family:inherit;padding:8px 2px;min-height:48px;cursor:pointer}
+.dados{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;margin:6px 0 4px;font-size:16px}.dados>div{border-bottom:1px solid var(--ln);padding-bottom:8px;overflow-wrap:anywhere}.dados small{display:block;color:var(--mut);font-size:13px;font-weight:600}.voltar{display:flex;justify-content:space-between;margin:-4px 0 6px}.voltar button{min-width:56px;padding:8px 10px!important}.btn.sm{min-width:44px}@media(max-width:360px){header .t small{display:none}}.voltar button{background:none;border:0;color:var(--pri);font:600 16px inherit;font-family:inherit;padding:8px 2px;min-height:48px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -126,7 +126,7 @@ const LS = {
 function cookieGuardar(k, v) { try { document.cookie = 'linhagem_' + k + '=' + encodeURIComponent(JSON.stringify(v)) + ';path=/;max-age=31536000;SameSite=Lax' + (location.protocol === 'https:' ? ';Secure' : ''); } catch (e) {} }
 function cookieLer(k) { try { const m = document.cookie.match(new RegExp('(?:^|; )linhagem_' + k + '=([^;]*)')); return m ? JSON.parse(decodeURIComponent(m[1])) : undefined; } catch (e) { return undefined; } }
 // Base, fila e recusados podem ficar grandes: vão para o IndexedDB (centenas de MB), com cópia na memória
-const VERSAO = '1.4.5 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
+const VERSAO = '1.4.6 · 28/11/2026'; // mude a cada publicação (aparece no rodapé de Mais e na tela de entrada)
 const GRANDES = ['base', 'fila', 'recusados'];
 const IDB = {
   db: null,
@@ -245,7 +245,7 @@ function atualizarSync() {
   const n = fila.length;
   // cor do botão: laranja enquanto envia/atualiza ou há algo a enviar, vermelho se falhou, azul do app quando está tudo certo
   const er = cfg.url && erroRelevante();
-  b.className = 'sync' + (sincronizando || n ? ' pend' : er ? ' erro' : '') + (!navigator.onLine && !sincronizando ? ' off' : '');
+  b.className = 'sync' + (sincronizando || (n && cfg.url) ? ' pend' : er ? ' erro' : '') + (!navigator.onLine && !sincronizando ? ' off' : '');
   const hora = ultimaSync ? new Date(ultimaSync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
   b.innerHTML = '<span class="gira' + (sincronizando ? ' on' : '') + '">⟳</span> ' + (sincronizando ? (n ? 'Enviando…' : 'Atualizando…') : !cfg.url ? 'Demonstração' + (n ? ' · ' + n : '') : n ? 'Enviar ' + n + (!navigator.onLine ? ' (sem sinal)' : '') : !navigator.onLine ? 'Sem sinal' : 'Sincronizar');
   b.title = cfg.url ? (n ? n + ' lançamento(s) aguardando envio. Toque para enviar agora.' : 'Tudo enviado' + (hora ? ' (última vez às ' + hora + ')' : '') + '. Toque para buscar as novidades.') : 'Modo demonstração: os dados ficam só neste aparelho.';
@@ -307,12 +307,15 @@ function ir(t, arg, semHistorico) {
   if (t === 'voltarFicha') { const p = pilhaFicha.pop(); window.__voltando = true; ir('ficha', p); window.__voltando = false; setTimeout(() => { const g = [...document.querySelectorAll('h3')].find(x => x.textContent === 'Genealogia'); if (g) { g.scrollIntoView(); window.scrollBy(0, -80); } }, 30); return; }
   if (t === 'ficha' && !window.__voltando) { if (tela === 'ficha' && telaArg && arg !== telaArg) pilhaFicha.push(telaArg); else if (tela !== 'ficha') pilhaFicha = []; }
   if (t !== 'lancar') { window.__corrigindo = null; if (window.__recarregarDepois) { window.__recarregarDepois = false; ultimaChecagem = 0; setTimeout(checarVersao, 500); } }
-  if (t === 'lancar') { limparForm = true; L.data = hoje(); L.mudou = false; L.seq = 0; veioFicha = !!arg; if (!arg) animalSel = null; }
+  if (t === 'lancar') { L.verTipos = false; limparForm = true; L.data = hoje(); L.mudou = false; L.seq = 0; veioFicha = !!arg; if (!arg) animalSel = null; }
   tela = t; telaArg = arg;
   // botão "voltar" do celular volta para a tela anterior do app, em vez de sair
   if (!semHistorico) { try { history.pushState({ t, arg }, ''); } catch (e) {} }
   render(); window.scrollTo(0, 0);
+  ajustarFundo();
 }
+// espaço no fim da tela do tamanho da barra de salvar (em celular pequeno ela fica alta)
+function ajustarFundo() { setTimeout(() => { const b = document.querySelector('.barSalvar'), m = $('main'), h = b ? b.offsetHeight + 70 : 80; if (m) m.style.paddingBottom = b ? (b.offsetHeight + 90) + 'px' : ''; document.documentElement.style.scrollPaddingBottom = h + 'px'; document.documentElement.style.scrollPaddingTop = '80px'; }, 80); } // campos que entram em foco nunca ficam atrás das barras
 window.addEventListener('popstate', e => { if (!user) return; const st = e.state || { t: 'inicio' }; ir(st.t, st.arg, true); });
 // tela "de cima" de cada subtela: é para lá que o link Voltar leva
 // quantos dos 6 ancestrais (pais e avós) estão cadastrados
@@ -349,7 +352,7 @@ function saldoLote() {
   const l = S.lotes[v('oLote')], u = parseInt(v('oDoses'), 10) || 0, el = $('oSaldo'); if (!el) return;
   if (!l) return el.classList.add('hide');
   const d = S.animais[l.doador]; el.classList.remove('hide');
-  el.innerHTML = `Doador <b>…${esc(d ? d.chip.slice(-5) : '?')}</b> · ${esc(rotCan(S.canecas[l.caneca]))}<br><b>${l.disp} disponíveis − ${u} usadas = ${l.disp - u} restantes</b>${u > l.disp ? ' <span style="color:var(--err)">(não há doses suficientes)</span>' : ''}`;
+  el.innerHTML = `Lote <b>${codLote(l.id)}</b> · doador <b>…${esc(d ? d.chip.slice(-5) : '?')}</b> · ${esc(rotCan(S.canecas[l.caneca]))}<br><b>${l.disp} disponíveis − ${u} usadas = ${l.disp - u} restantes</b>${u > l.disp ? ' <span style="color:var(--err)">(não há doses suficientes)</span>' : ''}`;
 }
 function botoesSelect(id, opcoesHtml, onchange) {
   const tmp = document.createElement('select'); tmp.innerHTML = opcoesHtml;
@@ -424,7 +427,7 @@ function telaLogin() {
     <button class="btn w" onclick="entrar()">Entrar</button>
     ${cfg.url ? `<p class="mut" style="margin:10px 0 0;font-size:14px">Primeira vez? Use o e-mail e o PIN provisório que o administrador passou.</p>` : ''}
     <details style="margin-top:14px"><summary>Configurar servidor</summary>${formServidor()}</details>
-  </div><p class="mut" style="text-align:center;font-size:12px;margin-top:14px">Linhagem · versão ${VERSAO}</p>`;
+  </div><p class="mut" style="text-align:center;font-size:13px;margin-top:14px">Linhagem · versão ${VERSAO}</p>`;
 }
 async function entrar() {
   const nome = $('lgNome').value.trim(), pin = $('lgPin').value.trim(); let perfil = '', inicial = false, token = '', nomeSrv = '', trocar = false;
@@ -564,8 +567,8 @@ function telaLancar(idAnimal) {
   $('main').innerHTML = `
     <h2>Lançar manejo</h2>${avisoRelogio()}
     <div class="card">
-      <div class="passo"><span>1</span> Qual manejo?</div>
-      <div class="chips">${TIPOS.map(t => `<button class="chip ${L.sub === t ? 'on' : ''}" onclick="if(L.sub!=='${t}')L.seq=0;L.sub='${t}';guardar();telaLancar()">${t}</button>`).join('')}</div>
+      ${veioFicha && a && !L.verTipos ? `<div class="passo" style="margin:0"><span>1</span> Manejo: <span style="color:var(--tx)">${esc(L.sub === 'Outro manejo' && L.outro ? L.outro : L.sub)}</span><button class="btn sec sm" style="margin-left:auto" onclick="L.verTipos=true;telaLancar()">Trocar</button></div>` : `<div class="passo"><span>1</span> Qual manejo?</div>
+      <div class="chips">${TIPOS.map(t => `<button class="chip ${L.sub === t ? 'on' : ''}" onclick="if(L.sub!=='${t}')L.seq=0;L.sub='${t}';guardar();telaLancar()">${t}</button>`).join('')}</div>`}
     </div>
     <div class="card">
       ${novo ? `<div class="passo"><span>2</span> Dados do animal novo</div>${formNovo()}` : `
@@ -586,14 +589,15 @@ function telaLancar(idAnimal) {
         <div class="chips"><button class="chip ${!L.mudou ? 'on' : ''}" onclick="L.mudou=false;guardar();telaLancar()">Não</button><button class="chip ${L.mudou ? 'on' : ''}" onclick="L.mudou=true;guardar();telaLancar()">Sim</button></div>` : ''}
       ${mostraDest ? `<label>${novo ? 'Viveiro onde o animal vai ficar' : 'Viveiro de destino'}${a ? ' (hoje está no ' + esc(viv(a.viveiro)) + ')' : ''}</label>${botoesSelect('fDest', vivOpts(L.destino, true), "L.destino=this.value;guardar();barraDestino()")}${L.lote && L.destino && !veioFicha ? `<div class="destmantido">Destino mantido do peixe anterior: <b>${esc(viv(L.destino))}</b>. Confira a cada peixe.</div>` : ''}` : ''}
       <div class="grid2"><div><label>Data</label><input id="fData" type="date" value="${L.data}" max="${hoje()}" onchange="L.data=this.value;guardar()"></div>
-      </div>${veioFicha ? '' : `<label class="toggle"><span><b>Vários animais seguidos</b><br><small class="mut">Depois de salvar, a tela volta pronta para o próximo peixe</small></span><input type="checkbox" ${L.lote ? 'checked' : ''} onchange="L.lote=this.checked;guardar();telaLancar()"></label>`}
+      </div>${veioFicha ? '' : `<label>Quantos peixes neste manejo?</label><div class="chips"><button class="chip ${!L.lote ? 'on' : ''}" onclick="L.lote=false;guardar();telaLancar()">Só este</button><button class="chip ${L.lote ? 'on' : ''}" onclick="L.lote=true;guardar();telaLancar()">Vários seguidos</button></div>${L.lote ? '' : '<small class="mut">Em "Vários seguidos", depois de salvar a tela volta pronta para o próximo peixe.</small>'}`}
       <label>Observações</label><textarea id="fObs" rows="2"></textarea>
       <div style="height:14px"></div>
-      <button class="btn acc w" onclick="salvarLanc()">${nomeSalvar}</button>
+      <button class="btn acc w" onclick="salvarLanc()">${veioFicha && a ? '✓ Salvar e voltar à ficha' : nomeSalvar}</button>${veioFicha && a ? `<div style="height:8px"></div><button class="btn sec w" onclick="window.__proximo=true;salvarLanc()">Salvar e lançar outro peixe</button>` : ''}
       ${L.lote ? `<p class="mut" style="margin:8px 0 0"><b>${S.atividades.filter(x => x.tipo === (L.sub === 'Outro manejo' ? L.outro : L.sub) && String(x.data).slice(0, 10) === L.data).length}</b> lançamento(s) deste tipo nesta data.</p>` : ''}
       ${L.lote ? '<p class="mut" style="margin:8px 0 0">Depois de salvar, a tela volta pronta para o próximo animal com o mesmo manejo e o mesmo viveiro de destino.</p>' : ''}
     </div>
-    <div class="barSalvar noprint"><div class="bsInfo"><small>${esc(novo ? 'Novo animal' : L.sub === 'Outro manejo' ? (L.outro || 'Outro manejo') : L.sub)}</small>${novo ? '<b>Preencha o chip e o viveiro</b>' : a ? `<span class="chipbig">…${esc(a.chip.slice(-5))}</span> <small style="display:inline" id="bsViv">${esc(SEXO[a.sexo] || '')} · ${esc(viv(a.viveiro))}${mostraDest && L.destino ? ' → <b>' + esc(viv(L.destino)) + '</b>' : ''}</small>` : '<b>Falta escolher o animal</b>'}</div>${veioFicha && a ? `<div style="display:grid;gap:6px"><button class="btn acc" onclick="salvarLanc()">✓ Salvar e voltar à ficha</button><button class="btn sec" style="min-height:40px;padding:6px 12px" onclick="window.__proximo=true;salvarLanc()">Salvar e lançar outro peixe</button></div>` : `<button class="btn acc" onclick="salvarLanc()">✓ ${nomeSalvar}</button>`}</div>`;
+    <div class="barSalvar noprint"><div class="bsInfo"><small>${esc(novo ? 'Novo animal' : L.sub === 'Outro manejo' ? (L.outro || 'Outro manejo') : L.sub)}</small>${novo ? '<b>Preencha o chip e o viveiro</b>' : a ? `<span class="chipbig">…${esc(a.chip.slice(-5))}</span> <small style="display:inline" id="bsViv">${esc(SEXO[a.sexo] || '')} · ${esc(viv(a.viveiro))}${mostraDest && L.destino ? ' → <b>' + esc(viv(L.destino)) + '</b>' : ''}</small>` : '<b>Falta escolher o animal</b>'}</div>${veioFicha && a ? `<button class="btn acc" onclick="salvarLanc()">✓ Salvar</button>` : `<button class="btn acc" onclick="salvarLanc()">✓ ${innerWidth < 380 ? 'Salvar' : nomeSalvar}</button>`}</div>`;
+  ajustarFundo();
   setTimeout(() => {
     const q = $('qL') || $('nChip') || (a && (document.querySelector('#dadosCard input') || $('fDest') || document.querySelector('.chipdest .chip')));
     if (q) { q.focus(); if (a) q.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
@@ -761,9 +765,9 @@ function telaFicha(id) {
     <div class="card"><div class="mut">Chip atual</div><div class="big mono">${esc(a.chip)}</div>
       ${a.chipsAnt.length ? `<div class="mut">Chips anteriores: <span class="mono">${a.chipsAnt.map(esc).join(', ')}</span></div>` : ''}
       <div style="margin:8px 0">${tagSexo(a.sexo)} <span class="tag ${ativo(a) ? '' : 'bad'}">${esc(a.status)}</span></div>
-      <table><tr><th>Safra</th><td>${esc(a.safra || '—')}</td><th>Viveiro atual</th><td><b>${esc(viv(a.viveiro))}</b></td></tr>
-      <tr><th>Classe prioridade</th><td>${esc(a.classe || '—')}</td><th>Razão pai / mãe</th><td>${esc(a.razaoPai || '—')} / ${esc(a.razaoMae || '—')}</td></tr>
-      <tr><th>Endogamia (F)</th><td>${a.pai && a.mae ? fmtF(endogamia(S, a.id)) + (cobertura(a.id) < 6 ? ' <small class="mut">(pedigree incompleto: ' + cobertura(a.id) + ' de 6)</small>' : '') : '— <small class="mut">(pais não cadastrados)</small>'}</td><th>Pais</th><td>${a.pai || a.mae ? 'Registrados' : esc(a.origemPais || 'Não informados')}</td></tr></table>
+      <div class="dados"><div><small>Safra</small>${esc(a.safra || '—')}</div><div><small>Viveiro atual</small><b>${esc(viv(a.viveiro))}</b></div>
+      <div><small>Classe de prioridade</small>${esc(a.classe || '—')}</div><div><small>Razão pai / mãe</small>${esc(a.razaoPai || '—')} / ${esc(a.razaoMae || '—')}</div>
+      <div><small>Endogamia (F)</small>${a.pai && a.mae ? fmtF(endogamia(S, a.id)) + (cobertura(a.id) < 6 ? ' <small class="mut" style="display:inline">(pedigree incompleto: ' + cobertura(a.id) + ' de 6)</small>' : '') : '— <small class="mut" style="display:inline">(pais não cadastrados)</small>'}</div><div><small>Pais</small>${a.pai || a.mae ? 'Registrados' : esc(a.origemPais || 'Não informados')}</div></div>
       ${ativo(a) ? `<div class="chipdest noprint" style="margin-top:12px">${[['Biometria', '⚖️ Biometria'], ['Mudança de viveiro', '🔁 Mudar viveiro'], a.sexo !== 'F' ? ['Coleta de sêmen', '🧪 Coleta de sêmen'] : null, a.sexo !== 'M' ? ['Coleta de ovócitos', '🥚 Ovócitos'] : null, ['Outro manejo', 'Outro…']].filter(Boolean).map(([s, t]) => `<button class="btn ${s === 'Biometria' ? 'acc' : 'sec'}" style="width:auto;min-height:48px" onclick="L.sub='${s}';guardar();ir('lancar','${id}')">${t}</button>`).join('')}</div>` : ''}
       <div class="row noprint" style="margin-top:8px">${user.perfil === 'Administrador' || !cfg.url ? `<button class="btn sec sm" onclick="ir('editar','${id}')">Editar</button>` : ''}<button class="btn sec sm" onclick="window.print()">PDF / imprimir</button></div></div>
     <div class="card"><h3 style="margin-top:0">Genealogia</h3>
@@ -850,8 +854,8 @@ function telaMais() {
 
   const it = [['painel', 'Painéis', 'Animais por sexo, safra e classe; ocupação dos viveiros'], ['viveiros', 'Viveiros', 'Cadastrar e editar viveiros e tanques'], ['canecas', 'Botijões e canecas', 'Estrutura do banco de sêmen'], ...(user.perfil === 'Administrador' || !cfg.url ? [['importar', 'Importar dados', 'Plantel, viveiros, canecas, biometrias, sêmen e manejos (.xlsx ou .csv)']] : []), ['sugestoes', 'Melhorias e correções', 'Envie sugestões e erros encontrados no sistema'], ['cruzamento', 'Simular cruzamento', 'Parentesco entre macho e fêmea e endogamia esperada do filho'], ['excel', 'Baixar tudo em Excel', 'Animais, viveiros, biometrias, sêmen, manejos e movimentações em um arquivo .xlsx'], ['pedigree', 'Arquivo de pedigree', 'Exportar ID, ID_PAI, ID_MAE'], ...(user.perfil === 'Administrador' ? [['usuarios', 'Pessoas e PINs', 'Quem pode entrar no sistema, com qual perfil, e acesso à planilha']] : []), ...(user.token ? [['meupin', 'Trocar meu PIN', 'Precisa de internet']] : []), ['pendencias', 'Sincronização e pendências', fila.length + ' a enviar · ' + recusados.length + ' recusado(s)' + (erroSync ? ' · último envio falhou' : '')], ['config', 'Configurações', 'Nome do sistema, servidor, usuário'], ['sair', 'Sair', 'Encerrar a sessão neste aparelho']];
   $('main').innerHTML = `<h2>Mais</h2><div class="card" style="padding:4px 12px">${it.map(([k, t, s]) => `<div class="item" onclick="${k === 'excel' ? 'exportarExcel()' : `ir('${k}')`}"><div class="m"><b>${t}</b><div class="s">${s}</div></div><span>›</span></div>`).join('')}</div>
-    <p class="mut">Usuário: <b>${esc(user.nome)}</b> (${esc(user.perfil)}) · <a class="lk" onclick="ir('sair')">Sair</a></p>${user.perfil === 'Administrador' && situacaoBackup() ? `<p class="mut" style="${situacaoBackup().ruim ? 'color:var(--err)' : ''}">${esc(situacaoBackup().txt)}</p>` : ''}
-    <p class="mut" style="text-align:center;font-size:12px;margin-top:18px">Linhagem · versão ${VERSAO}${cfg.url ? '' : ' · modo demonstração'}</p>`;
+    <p class="mut">Usuário: <b>${esc(user.nome)}</b> (${esc(user.perfil)}) · <a class="lk" style="padding:12px 12px" onclick="ir('sair')">Sair</a></p>${user.perfil === 'Administrador' && situacaoBackup() ? `<p class="mut" style="${situacaoBackup().ruim ? 'color:var(--err)' : ''}">${esc(situacaoBackup().txt)}</p>` : ''}
+    <p class="mut" style="text-align:center;font-size:13px;margin-top:18px">Linhagem · versão ${VERSAO}${cfg.url ? '' : ' · modo demonstração'}</p>`;
 }
 function ocupacao() {
   const r = {};
