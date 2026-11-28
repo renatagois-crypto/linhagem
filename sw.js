@@ -1,4 +1,4 @@
-const CACHE = 'linhagem-v146';
+const CACHE = 'linhagem-v147';
 const ARQ = ['./', 'index.html', 'regras.js', 'logo.svg', 'manifest.json', 'icon-192.png', 'icon-512.png', 'xlsx.min.js'];
 // arquivos que não mudam entre versões (o nome do cache muda a cada publicação): sempre do cache, sem esperar a rede
 const FIXOS = ['xlsx.min.js', 'logo.svg', 'icon-192.png', 'icon-512.png', 'manifest.json'];
